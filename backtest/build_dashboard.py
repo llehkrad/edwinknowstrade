@@ -56,11 +56,19 @@ body {
 .dashboard-header h1 { font-size: 20px; font-weight: 600; }
 .dashboard-header .subtitle { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; }
 .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--gap); margin-bottom: var(--gap); }
+.kpi-row.primary { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.kpi-row.secondary { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: calc(var(--gap) * 1.5); }
 .kpi-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.kpi-row.primary .kpi-card { padding: 22px 24px; border-left: 4px solid var(--color-1, #4C72B0); }
 .kpi-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .kpi-value { font-size: 24px; font-weight: 700; }
+.kpi-row.primary .kpi-value { font-size: 30px; }
+.kpi-row.secondary .kpi-value { font-size: 19px; }
 .kpi-value.positive { color: var(--positive); }
 .kpi-value.negative { color: var(--negative); }
+.kpi-subvalue { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.kpi-subvalue.positive { color: var(--positive); }
+.kpi-subvalue.negative { color: var(--negative); }
 .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
 .chart-row.secondary { grid-template-columns: 1fr 1fr; }
 .chart-container { background: var(--bg-card); border-radius: var(--radius); padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
@@ -85,7 +93,25 @@ body {
 .pnl-positive { color: var(--positive); font-weight: 600; }
 .pnl-negative { color: var(--negative); font-weight: 600; }
 .table-footer { font-size: 12px; color: var(--text-secondary); margin-top: 10px; }
+.calendar-section { background: var(--bg-card); border-radius: var(--radius); padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: var(--gap); }
+.calendar-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.calendar-section .cal-legend { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+.cal-month { margin-bottom: 22px; }
+.cal-month h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-dow { text-align: center; font-size: 11px; color: var(--text-secondary); font-weight: 600; padding: 2px 0 6px; }
+.cal-cell { min-height: 64px; border-radius: 6px; padding: 6px 8px; font-size: 11px; background: #f8f9fa; border: 1px solid #eee; }
+.cal-cell.empty { background: transparent; border: none; }
+.cal-day-num { font-weight: 600; color: var(--text-secondary); margin-bottom: 3px; }
+.cal-cell.cal-win { background: rgba(40,167,69,0.14); border-color: rgba(40,167,69,0.35); }
+.cal-cell.cal-loss { background: rgba(220,53,69,0.14); border-color: rgba(220,53,69,0.35); }
+.cal-cell.cal-flat { background: rgba(108,117,125,0.08); }
+.cal-pnl { font-weight: 700; font-size: 12px; }
+.cal-pnl.positive { color: var(--positive); }
+.cal-pnl.negative { color: var(--negative); }
+.cal-counts { color: var(--text-secondary); font-size: 10px; margin-top: 3px; }
 @media (max-width: 900px) { .chart-row, .chart-row.secondary { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .cal-cell { min-height: 46px; font-size: 10px; } .cal-counts { display: none; } }
 </style>
 </head>
 <body>
@@ -98,14 +124,33 @@ body {
         </div>
     </header>
 
-    <section class="kpi-row">
-        <div class="kpi-card"><div class="kpi-label">Starting Equity</div><div class="kpi-value" id="kpi-start"></div></div>
-        <div class="kpi-card"><div class="kpi-label">Ending Equity</div><div class="kpi-value" id="kpi-end"></div></div>
-        <div class="kpi-card"><div class="kpi-label">Total Return</div><div class="kpi-value" id="kpi-return"></div></div>
-        <div class="kpi-card"><div class="kpi-label">Max Drawdown</div><div class="kpi-value" id="kpi-dd"></div></div>
+    <section class="kpi-row primary">
+        <div class="kpi-card">
+            <div class="kpi-label">Current Equity</div>
+            <div class="kpi-value" id="kpi-current"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Total Return</div>
+            <div class="kpi-value" id="kpi-return-usd"></div>
+            <div class="kpi-subvalue" id="kpi-return-pct"></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Commission Paid</div>
+            <div class="kpi-value" id="kpi-commission"></div>
+        </div>
+    </section>
+
+    <section class="kpi-row secondary">
+        <div class="kpi-card"><div class="kpi-label">Max Drawdown</div><div class="kpi-value negative" id="kpi-dd"></div></div>
         <div class="kpi-card"><div class="kpi-label">Win Rate</div><div class="kpi-value" id="kpi-winrate"></div></div>
         <div class="kpi-card"><div class="kpi-label">Round Trips</div><div class="kpi-value" id="kpi-trips"></div></div>
-        <div class="kpi-card"><div class="kpi-label">Total Commission</div><div class="kpi-value" id="kpi-commission"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Open Positions</div><div class="kpi-value" id="kpi-open"></div></div>
+    </section>
+
+    <section class="calendar-section">
+        <h3>Daily Trading Calendar</h3>
+        <div class="cal-legend">Green = day closed net positive · Red = day closed net negative · Returns counted on the day a trade closes, not when it opened.</div>
+        <div id="calendar-container"></div>
     </section>
 
     <section class="chart-row">
@@ -146,16 +191,77 @@ function isBlank(v) { return v === null || v === undefined || (typeof v === 'num
 
 function renderKPIs() {
     const k = DATA.kpis;
-    document.getElementById('kpi-start').textContent = fmtCurrency(k.starting_equity);
-    document.getElementById('kpi-end').textContent = fmtCurrency(k.ending_equity);
-    const retEl = document.getElementById('kpi-return');
-    retEl.textContent = fmtPct(k.total_return_pct);
-    retEl.className = 'kpi-value ' + (k.total_return_pct >= 0 ? 'positive' : 'negative');
+    const sign = k.total_return_usd >= 0 ? 'positive' : 'negative';
+
+    document.getElementById('kpi-current').textContent = fmtCurrency(k.ending_equity);
+
+    const usdEl = document.getElementById('kpi-return-usd');
+    usdEl.textContent = fmtCurrency(k.total_return_usd);
+    usdEl.className = 'kpi-value ' + sign;
+
+    const pctEl = document.getElementById('kpi-return-pct');
+    pctEl.textContent = fmtPct(k.total_return_pct);
+    pctEl.className = 'kpi-subvalue ' + sign;
+
+    document.getElementById('kpi-commission').textContent = fmtCurrency(k.total_commission);
+
     document.getElementById('kpi-dd').textContent = fmtPct(k.max_drawdown_pct);
-    document.getElementById('kpi-dd').className = 'kpi-value negative';
     document.getElementById('kpi-winrate').textContent = fmtPct(k.win_rate);
     document.getElementById('kpi-trips').textContent = k.num_round_trips.toLocaleString();
-    document.getElementById('kpi-commission').textContent = fmtCurrency(k.total_commission);
+    document.getElementById('kpi-open').textContent = k.num_open_positions.toLocaleString();
+}
+
+function renderCalendarMonth(year, month, daily) {
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startWeekday = firstDay.getDay();
+
+    let html = `<div class="cal-month"><h4>${monthNames[month]} ${year}</h4><div class="cal-grid">`;
+    ['S','M','T','W','T','F','S'].forEach(d => { html += `<div class="cal-dow">${d}</div>`; });
+
+    for (let i = 0; i < startWeekday; i++) html += '<div class="cal-cell empty"></div>';
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const info = daily[dateStr];
+        let cls = 'cal-cell';
+        let body = `<div class="cal-day-num">${day}</div>`;
+        if (info) {
+            cls += info.pnl > 0 ? ' cal-win' : (info.pnl < 0 ? ' cal-loss' : ' cal-flat');
+            const pnlCls = info.pnl >= 0 ? 'positive' : 'negative';
+            body += `<div class="cal-pnl ${pnlCls}">${fmtCurrency(info.pnl)}</div>`;
+            body += `<div class="cal-counts">${info.opened} opened / ${info.closed} closed</div>`;
+        }
+        html += `<div class="${cls}">${body}</div>`;
+    }
+
+    const totalCells = startWeekday + daysInMonth;
+    const remainder = (7 - (totalCells % 7)) % 7;
+    for (let i = 0; i < remainder; i++) html += '<div class="cal-cell empty"></div>';
+
+    html += '</div></div>';
+    return html;
+}
+
+function renderCalendars() {
+    const daily = DATA.daily;
+    const dateKeys = Object.keys(daily);
+    const container = document.getElementById('calendar-container');
+    if (dateKeys.length === 0) { container.textContent = 'No trades yet.'; return; }
+
+    const dates = dateKeys.map(d => new Date(d + 'T00:00:00'));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+
+    let html = '';
+    let cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    while (cursor <= end) {
+        html += renderCalendarMonth(cursor.getFullYear(), cursor.getMonth(), daily);
+        cursor.setMonth(cursor.getMonth() + 1);
+    }
+    container.innerHTML = html;
 }
 
 function renderEquityChart() {
@@ -306,6 +412,7 @@ function renderTable(rows) {
 
 function init() {
     renderKPIs();
+    renderCalendars();
     renderEquityChart();
     renderDrawdownChart();
     renderBreakdownChart('pnl-symbol-chart', DATA.pnl_by_symbol);
@@ -341,14 +448,42 @@ def build_dashboard_data(results_dir: str) -> dict:
     round_trips = fills[fills["realized_pnl"].notna()].copy()
     wins = round_trips[round_trips["realized_pnl"] > 0]
 
+    # A symbol is "open" if its most recent fill (in time order) is an entry
+    # (buy/sell) rather than an exit -- engine.py only ever holds one position
+    # per symbol at a time, so last-fill-wins is sufficient here.
+    num_open_positions = 0
+    for _, group in fills.sort_values("timestamp").groupby("symbol"):
+        if group.iloc[-1]["action"] in ("buy", "sell"):
+            num_open_positions += 1
+
     kpis = {
         "starting_equity": starting_equity,
         "ending_equity": ending_equity,
+        "total_return_usd": ending_equity - starting_equity,
         "total_return_pct": ending_equity / starting_equity - 1,
         "max_drawdown_pct": float(drawdown.max()),
         "win_rate": len(wins) / len(round_trips) if len(round_trips) else 0.0,
         "num_round_trips": int(len(round_trips)),
+        "num_open_positions": num_open_positions,
         "total_commission": float(fills["commission"].sum()),
+    }
+
+    # Daily calendar: trades opened/closed and PnL, attributed to the day a
+    # trade CLOSES (not when it opened), per how the operator wants this read.
+    fills_by_day = fills.copy()
+    fills_by_day["date"] = fills_by_day["timestamp"].dt.strftime("%Y-%m-%d")
+    opened_counts = fills_by_day[fills_by_day["action"].isin(["buy", "sell"])].groupby("date").size()
+    closed_counts = fills_by_day[fills_by_day["action"] == "exit"].groupby("date").size()
+    daily_pnl = fills_by_day[fills_by_day["action"] == "exit"].groupby("date")["realized_pnl"].sum()
+
+    all_days = sorted(set(opened_counts.index) | set(closed_counts.index))
+    daily = {
+        day: {
+            "opened": int(opened_counts.get(day, 0)),
+            "closed": int(closed_counts.get(day, 0)),
+            "pnl": round(float(daily_pnl.get(day, 0.0)), 2),
+        }
+        for day in all_days
     }
 
     step = max(1, len(equity) // 750)
@@ -369,6 +504,7 @@ def build_dashboard_data(results_dir: str) -> dict:
     return {
         "kpis": kpis,
         "equity_series": equity_series,
+        "daily": daily,
         "pnl_by_symbol": {k: round(v, 2) for k, v in round_trips.groupby("symbol")["realized_pnl"].sum().items()},
         "pnl_by_strategy": {k: round(v, 2) for k, v in round_trips.groupby("strategy")["realized_pnl"].sum().items()},
         "fills": fills_out.to_dict(orient="records"),
