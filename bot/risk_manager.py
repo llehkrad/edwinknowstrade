@@ -15,13 +15,20 @@ from bot.portfolio import Portfolio
 def position_size(equity: float, atr_value: float, price: float) -> float:
     """
     Returns a signed-agnostic quantity (always positive) of shares to trade,
-    such that a 1-ATR adverse move costs config.RISK_PER_TRADE_PCT of equity.
+    such that a 1-ATR adverse move costs config.RISK_PER_TRADE_PCT of equity --
+    capped by config.MAX_POSITION_PCT_OF_EQUITY so sizing never implies more
+    notional than the account can actually afford (see config.py comment).
     """
     if atr_value <= 0 or price <= 0:
         return 0.0
 
     dollar_risk = equity * config.RISK_PER_TRADE_PCT
-    raw_qty = dollar_risk / atr_value
+    risk_based_qty = dollar_risk / atr_value
+
+    max_notional = equity * config.MAX_POSITION_PCT_OF_EQUITY
+    capital_based_qty = max_notional / price
+
+    raw_qty = min(risk_based_qty, capital_based_qty)
 
     if config.USE_FRACTIONAL_SHARES:
         return round(raw_qty, 4)

@@ -31,6 +31,16 @@ ACCOUNT_EQUITY_USD = float(os.getenv("ACCOUNT_EQUITY_USD", "1000"))
 RISK_PER_TRADE_PCT = 0.01  # 1 ATR move ~= this fraction of equity
 USE_FRACTIONAL_SHARES = True
 
+# Pure ATR-risk sizing (dollar_risk / ATR) can imply a notional far larger than
+# available cash on a small account trading $200-500+/share ETFs -- e.g. on a
+# $1k account, a $1.50 ATR on a $550 stock implies buying ~$3.7k of stock to
+# risk 1% of equity, which is leverage a cash account doesn't have. This caps
+# any single position's notional as a fraction of equity so sizing is always
+# affordable; when it binds, realized risk-per-trade will be below the
+# RISK_PER_TRADE_PCT target (capital-constrained rather than volatility-
+# constrained) -- expected and safe, not a bug.
+MAX_POSITION_PCT_OF_EQUITY = 0.30
+
 # --- ATR / stop-loss ---
 ATR_PERIOD = 14
 STOP_LOSS_ATR_MULT = 2.0  # stop distance = this many ATRs from entry
