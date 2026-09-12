@@ -94,7 +94,16 @@ body {
 .pnl-negative { color: var(--negative); font-weight: 600; }
 .table-footer { font-size: 12px; color: var(--text-secondary); margin-top: 10px; }
 .calendar-section { background: var(--bg-card); border-radius: var(--radius); padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: var(--gap); }
-.calendar-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
+.calendar-header h3 { font-size: 14px; font-weight: 600; }
+.cal-nav { display: flex; align-items: center; gap: 10px; }
+.cal-nav-btn {
+    width: 30px; height: 30px; border-radius: 6px; border: 1px solid #dee2e6; background: white;
+    color: var(--text-primary); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.cal-nav-btn:hover:not(:disabled) { background: #f8f9fa; }
+.cal-nav-btn:disabled { opacity: 0.35; cursor: default; }
+.cal-month-label { font-size: 14px; font-weight: 600; min-width: 130px; text-align: center; }
 .calendar-section .cal-legend { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
 .cal-month { margin-bottom: 22px; }
 .cal-month h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
@@ -148,7 +157,14 @@ body {
     </section>
 
     <section class="calendar-section">
-        <h3>Daily Trading Calendar</h3>
+        <div class="calendar-header">
+            <h3>Daily Trading Calendar</h3>
+            <div class="cal-nav">
+                <button id="cal-prev" class="cal-nav-btn" aria-label="Previous month">&#8592;</button>
+                <span id="cal-month-label" class="cal-month-label"></span>
+                <button id="cal-next" class="cal-nav-btn" aria-label="Next month">&#8594;</button>
+            </div>
+        </div>
         <div class="cal-legend">Green = day closed net positive · Red = day closed net negative · Returns counted on the day a trade closes, not when it opened.</div>
         <div id="calendar-container"></div>
     </section>
@@ -244,24 +260,51 @@ function renderCalendarMonth(year, month, daily) {
     return html;
 }
 
-function renderCalendars() {
-    const daily = DATA.daily;
-    const dateKeys = Object.keys(daily);
-    const container = document.getElementById('calendar-container');
-    if (dateKeys.length === 0) { container.textContent = 'No trades yet.'; return; }
+const calState = { year: null, month: null, minIdx: null, maxIdx: null };
+
+function monthIndex(y, m) { return y * 12 + m; }
+
+function initCalendarState() {
+    const dateKeys = Object.keys(DATA.daily);
+    if (dateKeys.length === 0) return false;
 
     const dates = dateKeys.map(d => new Date(d + 'T00:00:00'));
     const minDate = new Date(Math.min(...dates));
     const maxDate = new Date(Math.max(...dates));
 
-    let html = '';
-    let cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-    const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-    while (cursor <= end) {
-        html += renderCalendarMonth(cursor.getFullYear(), cursor.getMonth(), daily);
-        cursor.setMonth(cursor.getMonth() + 1);
-    }
-    container.innerHTML = html;
+    calState.minIdx = monthIndex(minDate.getFullYear(), minDate.getMonth());
+    calState.maxIdx = monthIndex(maxDate.getFullYear(), maxDate.getMonth());
+    calState.year = maxDate.getFullYear();  // default to the most recent month
+    calState.month = maxDate.getMonth();
+    return true;
+}
+
+function renderCalendars() {
+    const container = document.getElementById('calendar-container');
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    if (calState.year === null) { container.textContent = 'No trades yet.'; return; }
+
+    container.innerHTML = renderCalendarMonth(calState.year, calState.month, DATA.daily);
+    document.getElementById('cal-month-label').textContent = `${monthNames[calState.month]} ${calState.year}`;
+
+    const curIdx = monthIndex(calState.year, calState.month);
+    document.getElementById('cal-prev').disabled = curIdx <= calState.minIdx;
+    document.getElementById('cal-next').disabled = curIdx >= calState.maxIdx;
+}
+
+function shiftCalendarMonth(delta) {
+    let month = calState.month + delta;
+    let year = calState.year;
+    if (month < 0) { month = 11; year -= 1; }
+    if (month > 11) { month = 0; year += 1; }
+
+    const idx = monthIndex(year, month);
+    if (idx < calState.minIdx || idx > calState.maxIdx) return;
+
+    calState.year = year;
+    calState.month = month;
+    renderCalendars();
 }
 
 function renderEquityChart() {
@@ -412,7 +455,10 @@ function renderTable(rows) {
 
 function init() {
     renderKPIs();
+    initCalendarState();
     renderCalendars();
+    document.getElementById('cal-prev').addEventListener('click', () => shiftCalendarMonth(-1));
+    document.getElementById('cal-next').addEventListener('click', () => shiftCalendarMonth(1));
     renderEquityChart();
     renderDrawdownChart();
     renderBreakdownChart('pnl-symbol-chart', DATA.pnl_by_symbol);
