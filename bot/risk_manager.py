@@ -4,7 +4,7 @@ Position sizing, exposure caps, and the drawdown circuit breaker.
 All sizing is ATR-based: 1 ATR move ~= config.RISK_PER_TRADE_PCT of equity,
 so risk stays constant across SPY/QQQ/IWM regardless of each instrument's
 individual volatility. Fractional shares are used (config.USE_FRACTIONAL_SHARES)
-since a $1k account can't get meaningful whole-share sizing on $200-500+ ETFs.
+since a $5k account can't get meaningful whole-share sizing on $200-500+ ETFs.
 """
 from typing import Dict
 

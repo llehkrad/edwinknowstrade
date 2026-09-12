@@ -27,13 +27,13 @@ HISTORICAL_DURATION = "30 D"  # lookback window kept warm via keepUpToDate=True
 # --- Account / risk sizing ---
 # Operator-stated starting equity. In live/paper mode this should be reconciled
 # against ib.accountSummary() rather than trusted blindly — see risk_manager.
-ACCOUNT_EQUITY_USD = float(os.getenv("ACCOUNT_EQUITY_USD", "1000"))
+ACCOUNT_EQUITY_USD = float(os.getenv("ACCOUNT_EQUITY_USD", "5000"))
 RISK_PER_TRADE_PCT = 0.01  # 1 ATR move ~= this fraction of equity
 USE_FRACTIONAL_SHARES = True
 
 # Pure ATR-risk sizing (dollar_risk / ATR) can imply a notional far larger than
 # available cash on a small account trading $200-500+/share ETFs -- e.g. on a
-# $1k account, a $1.50 ATR on a $550 stock implies buying ~$3.7k of stock to
+# $5k account, a $1.50 ATR on a $550 stock implies buying ~$18.3k of stock to
 # risk 1% of equity, which is leverage a cash account doesn't have. This caps
 # any single position's notional as a fraction of equity so sizing is always
 # affordable; when it binds, realized risk-per-trade will be below the
@@ -72,7 +72,7 @@ MAX_DRAWDOWN_PCT = 0.10  # halt trading and flatten all positions past this draw
 # --- Holding style ---
 # Swing trading only: positions may carry across sessions. No same-day flatten
 # logic exists on purpose -- this keeps the bot clear of the US Pattern Day
-# Trader rule (a $1k account is far under the $25k PDT threshold, and same-day
+# Trader rule (a $5k account is far under the $25k PDT threshold, and same-day
 # round trips are what count against that limit).
 ALLOW_OVERNIGHT_HOLDS = True
 
