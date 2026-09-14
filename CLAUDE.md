@@ -21,9 +21,13 @@ day to finish provisioning. Resume checklist below once it's ready.
 - `backtest/` — engine (`engine.py`, reuses the live `bot/` modules directly
   so backtest and live logic can't diverge), IBKR commission/slippage model
   (`costs.py`), metrics (`metrics.py`), parameter grid search (`optimize.py`),
-  historical data loading (`data.py`), a real IBKR fetcher
-  (`fetch_ibkr_data.py`, needs Gateway/TWS running), a synthetic-data
-  generator for smoke-testing without a live connection
+  Monte Carlo resampling on completed trades (`monte_carlo.py` /
+  `run_monte_carlo.py` — bootstrap or shuffle the real round-trip PnLs a
+  backtest produced to see the range of possible drawdowns/returns from the
+  same trade outcomes in a different order, not just the one historical
+  sequence; added 2026-09-14), historical data loading (`data.py`), a real
+  IBKR fetcher (`fetch_ibkr_data.py`, needs Gateway/TWS running), a
+  synthetic-data generator for smoke-testing without a live connection
   (`generate_synthetic_data.py`), and a self-contained HTML dashboard builder
   (`build_dashboard.py` — equity curve, drawdown, daily trading calendar,
   PnL breakdowns, filterable trades table).
@@ -66,7 +70,11 @@ day to finish provisioning. Resume checklist below once it's ready.
    that actually matters, unlike the synthetic-data run above.
 5. Regenerate the dashboard with `python -m backtest.build_dashboard
    --real-data` (drops the synthetic-data warning banner).
-6. Only after backtest results look reasonable: begin the 2+ week paper
+6. Run `python -m backtest.run_monte_carlo` on the real `fills.csv` to see
+   the range of possible drawdowns/returns from the same trade outcomes in
+   a different order — not required, but worth checking before trusting a
+   single backtest run's drawdown number.
+7. Only after backtest results look reasonable: begin the 2+ week paper
    trading track record required before touching live keys (see "Required
    before going live" under Phase 1). Avoid the Client Portal "Paper Trading
    Account Reset" button once this clock starts — it wipes the track record.
