@@ -63,8 +63,9 @@ day to finish provisioning. Resume checklist below once it's ready.
    ActiveX/Socket Clients, Read-Only API unchecked, port 7497).
 2. Run `python check_ibkr_connection.py` — confirms connectivity and that
    SPY/QQQ/IWM show Live (not delayed) data.
-3. Run `python backtest/fetch_ibkr_data.py --duration "6 M"` to pull real
-   historical bars (replaces the synthetic data in `data/historical/`).
+3. Run `python -m backtest.fetch_ibkr_data --duration "6 M"` to pull real
+   historical bars (replaces the synthetic data in `data/historical/`). Must
+   be run with `-m` (module form), not as a plain script path.
 4. Re-run `python -m backtest.run_backtest` and
    `python -m backtest.optimize` on the real data — this result is the one
    that actually matters, unlike the synthetic-data run above.

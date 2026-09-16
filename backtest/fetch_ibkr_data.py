@@ -7,8 +7,9 @@ for the requested symbols. Run this from a machine that has that (e.g. your
 desktop with TWS, or the Lightsail box once IB Gateway is set up there) --
 it will NOT run in a plain dev sandbox with no IB connection.
 
-Usage:
-    python backtest/fetch_ibkr_data.py --duration "6 M" --bar-size "15 mins"
+Usage (must be run as a module -- it does absolute imports of `config` and
+`backtest.data`, which only resolve with the project root on sys.path):
+    python -m backtest.fetch_ibkr_data --duration "6 M" --bar-size "15 mins"
 """
 import argparse
 import os
