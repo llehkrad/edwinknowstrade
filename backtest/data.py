@@ -36,7 +36,13 @@ def load_bars(symbol: str, bar_size: str, start: str = None, end: str = None) ->
             f"generate_synthetic_data.py (for a smoke test) first."
         )
 
-    df = pd.read_csv(path, parse_dates=["date"])
+    df = pd.read_csv(path)
+    # A 1yr+ pull spans a US DST transition, so raw timestamps have mixed
+    # UTC offsets (-04:00 EDT vs -05:00 EST). read_csv's parse_dates can't
+    # unify mixed offsets into a single dtype and silently leaves the
+    # column as plain strings instead of raising -- normalize through UTC
+    # first, then convert back to Eastern for a consistent tz-aware index.
+    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_convert("America/New_York")
     df = df.set_index("date").sort_index()
 
     if start:
