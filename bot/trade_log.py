@@ -11,10 +11,12 @@ FIELDS = [
     "action",       # buy / sell / exit
     "quantity",
     "price",
+    "commission",
     "stop_price",
     "strategy",     # mean_reversion / trend_following
     "regime",       # ranging / trending
     "equity_after",
+    "realized_pnl",  # only populated on exit rows -- matches backtest/engine.py's Fill schema
 ]
 
 

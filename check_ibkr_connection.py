@@ -10,6 +10,10 @@ recommended for the first run).
 Usage:
     python check_ibkr_connection.py
 """
+import ib_compat
+
+ib_compat.ensure_event_loop()
+
 from ib_insync import IB, Stock
 
 import config

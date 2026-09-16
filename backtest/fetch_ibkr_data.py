@@ -13,6 +13,10 @@ Usage:
 import argparse
 import os
 
+import ib_compat
+
+ib_compat.ensure_event_loop()
+
 from ib_insync import IB, Stock, util
 
 import config
