@@ -20,7 +20,7 @@ from bot.indicators import atr
 from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
-from bot.strategies import mean_reversion, trend_following
+from bot.strategy_registry import get_strategies
 
 
 @dataclass
@@ -50,7 +50,8 @@ class BacktestResult:
 
 
 def _strategy_for(regime: Regime):
-    return trend_following if regime is Regime.TRENDING else mean_reversion
+    ranging_strategy, trending_strategy = get_strategies()
+    return trending_strategy if regime is Regime.TRENDING else ranging_strategy
 
 
 def _min_lookback() -> int:

@@ -50,14 +50,37 @@ ADX_PERIOD = 14
 ADX_TREND_THRESHOLD = 25  # ADX >= this => trending regime (trend-following active)
                           # ADX <  this => ranging regime (mean-reversion active)
 
-# --- Mean reversion strategy (TODO: tune via backtest) ---
+# --- Strategy set selection ---
+# "sma_zscore" = original SMA-crossover trend-following + SMA-zscore mean
+# reversion (bot/strategies/trend_following.py, mean_reversion.py).
+# "vwap_donchian" = VWAP-deviation reversion + Donchian channel breakout
+# (bot/strategies/vwap_reversion.py, donchian_breakout.py) -- added
+# 2026-09-16 after "sma_zscore" showed a negative edge across its ENTIRE
+# grid-searched parameter space on real SPY/QQQ/IWM 15-min data (see
+# CLAUDE.md). Both resolve through bot/strategy_registry.py so live and
+# backtest can't diverge on which pair is active.
+STRATEGY_SET = "sma_zscore"
+
+# --- Mean reversion strategy (sma_zscore set; TODO: tune via backtest) ---
 MR_MA_PERIOD = 20
 MR_ENTRY_STD_DEV = 2.0   # enter when price is this many std-devs from the MA
 MR_EXIT_STD_DEV = 0.5    # exit/flatten when price reverts back inside this band
 
-# --- Trend following strategy (TODO: tune via backtest) ---
+# --- Trend following strategy (sma_zscore set; TODO: tune via backtest) ---
 TF_FAST_MA_PERIOD = 10
 TF_SLOW_MA_PERIOD = 30
+
+# --- VWAP reversion strategy (vwap_donchian set; TODO: tune via backtest) ---
+# Deviation from session VWAP, expressed in ATR units so it's comparable
+# across SPY/QQQ/IWM regardless of each instrument's price/volatility level.
+VWAP_ENTRY_ATR_MULT = 1.5  # enter when price is this many ATRs from session VWAP
+VWAP_EXIT_ATR_MULT = 0.3   # exit once back within this many ATRs of VWAP
+
+# --- Donchian breakout strategy (vwap_donchian set; TODO: tune via backtest) ---
+# Dual-channel (Turtle-style): entry channel wider than exit channel so a
+# position isn't kicked out by the same-magnitude noise that triggered it.
+DONCHIAN_ENTRY_PERIOD = 20
+DONCHIAN_EXIT_PERIOD = 10
 
 # --- Portfolio-level exposure cap ---
 # SPY/QQQ/IWM are more correlated with each other than the original SPY/QQQ/BTC

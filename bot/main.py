@@ -37,7 +37,7 @@ from bot.indicators import atr
 from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
-from bot.strategies import mean_reversion, trend_following
+from bot.strategy_registry import get_strategies
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("bot.main")
@@ -50,7 +50,8 @@ halted = False  # set True once the circuit breaker fires; blocks new entries
 
 
 def strategy_for(regime: Regime):
-    return trend_following if regime is Regime.TRENDING else mean_reversion
+    ranging_strategy, trending_strategy = get_strategies()
+    return trending_strategy if regime is Regime.TRENDING else ranging_strategy
 
 
 def current_open_price_map(bar_lists) -> dict:
