@@ -5,7 +5,52 @@ Code lives at https://github.com/llehkrad/edwinknowstrade (`main` branch).
 Local git identity for this repo: user.name "Edwin", user.email
 darkhell85@gmail.com (repo-local config, not global).
 
-## Current status (as of 2026-09-16) — paused on strategy-hunting, infra is solid
+## Current status (as of 2026-09-17) — trend filter found real improvement, not yet profitable
+**Update 2026-09-17: added a 50-day daily trend filter (`bot/trend_filter.py`)
+that changed the picture.** After the 2026-09-16 pause, gated NEW entries
+(never exits/stops) by whether yesterday's daily close was above/below its
+own 50-day SMA — a completely different timescale than the 900+ configs
+already tested. Re-ran both grid searches (648 `sma_zscore` + 216
+`vwap_donchian` combos) on the full 1-year real data with the filter on:
+
+- **Best result: `MR_MA_PERIOD=30, MR_ENTRY_STD_DEV=2.5,
+  TF_FAST_MA_PERIOD=10, TF_SLOW_MA_PERIOD=50, ADX_TREND_THRESHOLD=25,
+  STOP_LOSS_ATR_MULT=4.0`** → -0.09% return (essentially flat), 2.5% max
+  drawdown (down from 9-10%), 46.9% win rate (up from ~30-38%), profit
+  factor 0.99, 98 round trips, circuit breaker never fired. Top 15 combos
+  cluster tightly between -0.09% and -1.8% (vs. wildly scattered negative
+  outcomes before) — a healthier sign than one lucky spike.
+- Applying the SAME filter to the previous best-known combo and to
+  untuned defaults also improved both broadly (losses roughly halved,
+  drawdown roughly halved, circuit breaker stopped firing on defaults) --
+  see git history 2026-09-16 commit for those numbers.
+- Monte Carlo stress test (5000 bootstrap resamples) of the new best
+  combo's 98 real trades: P(loss) 51.8% (a coin flip, not "almost
+  certain loss" like every prior config), P(hit circuit breaker) **0.0%**
+  across all 5000 resequenced simulations (worst-case drawdown seen: 9.5%,
+  never crossing 10%), return range -4.3% to +4.2% (p5-p95), median -0.1%.
+- `vwap_donchian` improved more modestly with the same filter (best -7.4%
+  -> -6.46%), reinforcing that `sma_zscore` is the more promising family.
+
+**Honest assessment: not yet a demonstrated profitable edge.** The median
+outcome is flat and it's a coin flip whether this specific sample nets
+positive or negative. But it's a fundamentally different, much better-
+controlled risk profile than the 900+ configs from 2026-09-16 (which
+reliably lost money with 60-67% odds of tripping the circuit breaker) --
+real, measurable progress from one deliberate, theory-driven change, not
+another blind parameter shuffle. This result is already on the full
+1-year dataset (the harder test that previously made the old "best"
+6-month combo's edge collapse) -- it didn't need a separate generalization
+check the way earlier findings did.
+
+**Not yet done, worth doing before trusting this further:** proper
+out-of-sample validation (e.g. fit on the first half of the 1yr data, test
+on the second half, rather than grid-searching the whole window at once)
+-- everything above was found by searching the full dataset, so some
+degree of in-sample selection bias remains even though the pattern looks
+healthier than prior findings.
+
+## Status history (2026-09-16) — for context on how we got here
 Phase 1 scaffolding, backtest harness, and the IBKR paper connection are
 all built and working end-to-end. **Extensive real-data testing found no
 profitable configuration of either strategy family built so far** — see
@@ -152,19 +197,22 @@ means another blind grid search is more likely to find noise than edge.
    be run with `-m` (module form), not as a plain script path. ✅ done
    2026-09-16 (3198 bars/symbol, Mar-Sep 2026).
 4. Re-run `python -m backtest.run_backtest` and `python -m backtest.optimize`
-   on real data — ✅ done 2026-09-16, extensively (see "Strategy search
-   findings" above). Result: no profitable configuration found across
-   900+ combos. This step is NOT "done and passed" — it's done and failed;
-   don't treat Phase 1's current strategy logic as validated.
+   on real data — ✅ done 2026-09-16 (900+ configs, all losing) and again
+   2026-09-17 with the new 50-day trend filter (best combo ~flat, see
+   "Current status" above). Don't re-run the same grids again without a
+   new hypothesis — see out-of-sample validation note below.
 5. Regenerate the dashboard with `python -m backtest.build_dashboard
    --real-data` (drops the synthetic-data warning banner). ✅ done
-   2026-09-16 for the 6mo untuned baseline.
-6. Run `python -m backtest.run_monte_carlo` on the real `fills.csv` — not
-   done yet; low priority until a profitable configuration exists to
-   stress-test in the first place.
-7. **Do not begin paper trading yet.** CLAUDE.md's own pre-live gate is
-   "only after backtest results look reasonable" -- they don't. Resolve
-   one of the options in "Strategy search findings" above first.
+   2026-09-16 for the 6mo untuned baseline; not yet regenerated for the
+   2026-09-17 trend-filtered best combo.
+6. Run `python -m backtest.run_monte_carlo` on the real `fills.csv` — ✅
+   done 2026-09-17 for the trend-filtered best combo (P(loss) 51.8%,
+   P(circuit breaker) 0.0% across 5000 sims — see "Current status" above).
+7. **Do not begin paper trading yet.** Still not a demonstrated edge —
+   run proper out-of-sample validation first (fit/select on the first half
+   of the 1yr data, test on the second half you didn't search over) before
+   trusting the 2026-09-17 result enough to start the 2+ week paper track
+   record.
 
 Note: `backtest/fetch_ibkr_data.py --duration "1 Y"` was also pulled and
 tested 2026-09-16 (6482 bars/symbol, Sep 2025-Sep 2026) — this surfaced and
@@ -332,15 +380,18 @@ file captures the adapted plan actually decided on.
   Telegram.
 
 ## Decisions still open
-- **Whether the current strategy approach has any edge at all.** This is no
-  longer just "tune the parameters" — see "Strategy search findings"
-  (2026-09-16) above. 900+ real-data-tested configurations across two
-  strategy families found nothing profitable. Needs a from-first-principles
-  rethink (timeframe, instrument choice, or the regime-filter/TA approach
-  itself), not another grid search with the same shape.
-- Exact strategy parameter VALUES remain placeholders in `config.py` — not
-  because they haven't been searched, but because the search came back
-  negative across the board.
+- **Whether the current strategy approach has a real, robust edge.**
+  Updated 2026-09-17: the 50-day trend filter moved this from "900+ configs,
+  all reliably losing" to "best combo essentially flat with a well-
+  controlled risk profile" (see "Current status" above) — a real
+  improvement, but not yet a demonstrated edge. Proper out-of-sample
+  validation (train/test split by time, not searching the whole window at
+  once) is the natural next step before trusting it further.
+- Exact strategy parameter VALUES: `MR_MA_PERIOD=30, MR_ENTRY_STD_DEV=2.5,
+  TF_FAST_MA_PERIOD=10, TF_SLOW_MA_PERIOD=50, ADX_TREND_THRESHOLD=25,
+  STOP_LOSS_ATR_MULT=4.0` is the current best candidate (with the trend
+  filter enabled) — still NOT set as the `config.py` defaults, since it
+  hasn't cleared out-of-sample validation yet.
 - Fixed watchlist (SPY/QQQ/IWM only) vs. later screener/scanner approach
   for a wider universe — deferred, not needed for Phase 1.
 
