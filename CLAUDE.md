@@ -5,16 +5,65 @@ Code lives at https://github.com/llehkrad/edwinknowstrade (`main` branch).
 Local git identity for this repo: user.name "Edwin", user.email
 darkhell85@gmail.com (repo-local config, not global).
 
-## Current status (as of 2026-09-16) — paper account live, tuning parameters
-Phase 1 scaffolding and backtest harness are built. Paper account
-(username `llehkradpaper`, account `DUT119165`) provisioned and connected
-successfully — real-time market data subscriptions share correctly from the
-live account. Real 6mo IBKR historical data pulled (Mar-Sep 2026, 3198 bars
-each for SPY/QQQ/IWM). First real backtest run (still on untuned placeholder
-parameters): **-9.92% return, 10.15% max drawdown, circuit breaker fired,
-233 round trips, 36% win rate.** Not a verdict — those parameters were
-always known placeholders. Parameter grid search on real data is the
-immediate next step (resume checklist items 4+ below).
+## Current status (as of 2026-09-16) — paused on strategy-hunting, infra is solid
+Phase 1 scaffolding, backtest harness, and the IBKR paper connection are
+all built and working end-to-end. **Extensive real-data testing found no
+profitable configuration of either strategy family built so far** — see
+"Strategy search findings" below. Decision made 2026-09-16: stop automated
+parameter/strategy hunting for now and think from first principles before
+writing more variations, rather than keep grid-searching into overfit noise.
+The execution/backtest/risk infrastructure itself is considered solid and
+reusable regardless of which signal logic eventually goes into it.
+
+### Strategy search findings (2026-09-16) — read before trying another variant
+Tested across **900+ configurations total**, all losing money:
+- 216 combos, `sma_zscore` set (SMA-crossover trend-following + SMA-zscore
+  mean reversion), 6mo real data: best -2.9% return, but every combo negative.
+- 216 combos, `vwap_donchian` set (VWAP-deviation reversion + Donchian
+  breakout — added specifically as a structurally different alternative,
+  see `bot/strategies/vwap_reversion.py` / `donchian_breakout.py`), 6mo real
+  data: best -7.4% return, every combo negative, and worse overall than
+  `sma_zscore`.
+- 648 combos, `sma_zscore` set with `STOP_LOSS_ATR_MULT` added to the grid
+  (2.0-4.0x), 6mo real data: widening the stop did NOT help — the single
+  best combo across all 648 still used the original 2.0x multiplier.
+- 18 targeted combos isolating `MR_EXIT_STD_DEV` (exit threshold) against
+  the top 3 known entry-param combos: confirmed exits matter (one combo
+  improved monotonically from -5.6% to -2.2% as the exit got looser/faster),
+  but the effect was inconsistent/non-monotonic across the other two combos,
+  and NONE reached profitability. Best result found anywhere: -2.23%.
+- The single best 6-month combo, re-tested on a full 1-year pull
+  (Sep 2025-Sep 2026, 6482 bars/symbol): return degraded from -2.9% to
+  -8.67% — a classic overfitting signature (looked good on the exact slice
+  it was fitted on, didn't generalize). Default/untuned params scored
+  almost identically on both windows (-9.92% vs -9.81%), confirming this
+  isn't just an unlucky short sample.
+- Consistent pattern across ALL of the above: `stop_loss` exits dominate
+  the PnL-by-strategy breakdown (typically -$700 to -$850), while the
+  underlying entry signals (mean_reversion/trend_following/vwap_reversion/
+  donchian_breakout) are usually mildly profitable on their own. The
+  losses come specifically from how positions get stopped out, not from
+  bad entries -- but no amount of stop-widening or exit-threshold tuning
+  tested so far fixed it.
+
+**Options considered for resuming this, not yet acted on:**
+1. Try a fundamentally different timeframe (daily/4hr bars instead of
+   15-min) -- untested, would also change the bot from intraday-monitoring
+   to something needing far less unsupervised infrastructure.
+2. Check whether SPY/QQQ/IWM specifically (famously liquid/efficient,
+   heavily arbitraged) are just a bad fit for this style of edge, by
+   backtesting the same strategies on historically choppier/less efficient
+   names.
+3. Revisit the regime filter itself (ADX-based trending/ranging split) --
+   never independently audited; both failing strategy families sit behind
+   it, so a bad regime split could be sabotaging both.
+4. Consider that simple technical rules on this instrument/timeframe combo
+   may not have edge at all, and Phase 1's approach needs to change more
+   fundamentally rather than be re-tuned.
+
+Don't silently re-run the same grids again without picking one of the
+above (or something new) first -- 900+ trials already run without success
+means another blind grid search is more likely to find noise than edge.
 
 **Two real bugs found and fixed while getting the paper connection working
 (2026-09-16), before any order was placed:**
@@ -102,21 +151,28 @@ immediate next step (resume checklist items 4+ below).
    historical bars (replaces the synthetic data in `data/historical/`). Must
    be run with `-m` (module form), not as a plain script path. ✅ done
    2026-09-16 (3198 bars/symbol, Mar-Sep 2026).
-4. Re-run `python -m backtest.run_backtest` — done 2026-09-16, see "Current
-   status" above for the baseline (untuned) result. Then run
-   `python -m backtest.optimize` on the real data — **this result is the
-   one that actually matters**, unlike the earlier synthetic-data run.
-   In progress as of 2026-09-16.
+4. Re-run `python -m backtest.run_backtest` and `python -m backtest.optimize`
+   on real data — ✅ done 2026-09-16, extensively (see "Strategy search
+   findings" above). Result: no profitable configuration found across
+   900+ combos. This step is NOT "done and passed" — it's done and failed;
+   don't treat Phase 1's current strategy logic as validated.
 5. Regenerate the dashboard with `python -m backtest.build_dashboard
-   --real-data` (drops the synthetic-data warning banner).
-6. Run `python -m backtest.run_monte_carlo` on the real `fills.csv` to see
-   the range of possible drawdowns/returns from the same trade outcomes in
-   a different order — not required, but worth checking before trusting a
-   single backtest run's drawdown number.
-7. Only after backtest results look reasonable: begin the 2+ week paper
-   trading track record required before touching live keys (see "Required
-   before going live" under Phase 1). Avoid the Client Portal "Paper Trading
-   Account Reset" button once this clock starts — it wipes the track record.
+   --real-data` (drops the synthetic-data warning banner). ✅ done
+   2026-09-16 for the 6mo untuned baseline.
+6. Run `python -m backtest.run_monte_carlo` on the real `fills.csv` — not
+   done yet; low priority until a profitable configuration exists to
+   stress-test in the first place.
+7. **Do not begin paper trading yet.** CLAUDE.md's own pre-live gate is
+   "only after backtest results look reasonable" -- they don't. Resolve
+   one of the options in "Strategy search findings" above first.
+
+Note: `backtest/fetch_ibkr_data.py --duration "1 Y"` was also pulled and
+tested 2026-09-16 (6482 bars/symbol, Sep 2025-Sep 2026) — this surfaced and
+fixed a real bug in `backtest/data.py`: a pull spanning a US DST transition
+has mixed UTC offsets (-04:00/-05:00) in the raw timestamps, which pandas'
+`read_csv(parse_dates=...)` silently failed to parse (left as plain
+strings) rather than raising. Fixed by parsing through
+`pd.to_datetime(..., utc=True)` then converting to `America/New_York`.
 
 ## Background
 Inspired by a marketing doc ("How to Build a Trading Bot with Claude Fable")
@@ -203,6 +259,9 @@ file captures the adapted plan actually decided on.
   ```
   bot/strategies/mean_reversion.py
   bot/strategies/trend_following.py
+  bot/strategies/vwap_reversion.py
+  bot/strategies/donchian_breakout.py
+  bot/strategy_registry.py
   bot/regime.py
   bot/risk_manager.py
   bot/portfolio.py
@@ -215,11 +274,14 @@ file captures the adapted plan actually decided on.
   backtest/costs.py
   backtest/metrics.py
   backtest/optimize.py
+  backtest/monte_carlo.py
+  backtest/run_monte_carlo.py
   backtest/data.py
   backtest/fetch_ibkr_data.py
   backtest/generate_synthetic_data.py
   backtest/build_dashboard.py
   check_ibkr_connection.py
+  ib_compat.py
   config.py
   .env
   ```
@@ -269,13 +331,16 @@ file captures the adapted plan actually decided on.
 - Reporting integration: confirmed **Slack** (Cowork connector) over
   Telegram.
 
-## Decisions still open (resolve once real backtest data is available)
-- Exact strategy parameter VALUES (MA periods, std-dev entry thresholds,
-  ADX threshold, stop-loss ATR multiple) — placeholders in `config.py` until
-  `backtest/optimize.py` is re-run against real IBKR historical data (the
-  synthetic-data grid search run on 2026-09-12 found parameters that overfit
-  to the synthetic generator's artificial sine-wave drift; those results are
-  meaningless and were discarded).
+## Decisions still open
+- **Whether the current strategy approach has any edge at all.** This is no
+  longer just "tune the parameters" — see "Strategy search findings"
+  (2026-09-16) above. 900+ real-data-tested configurations across two
+  strategy families found nothing profitable. Needs a from-first-principles
+  rethink (timeframe, instrument choice, or the regime-filter/TA approach
+  itself), not another grid search with the same shape.
+- Exact strategy parameter VALUES remain placeholders in `config.py` — not
+  because they haven't been searched, but because the search came back
+  negative across the board.
 - Fixed watchlist (SPY/QQQ/IWM only) vs. later screener/scanner approach
   for a wider universe — deferred, not needed for Phase 1.
 
