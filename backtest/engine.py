@@ -21,6 +21,7 @@ from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
 from bot.strategy_registry import get_strategies
+from bot.trend_filter import build_trend_map, entry_allowed
 
 
 @dataclass
@@ -58,14 +59,23 @@ def _min_lookback() -> int:
     return max(config.MR_MA_PERIOD, config.TF_SLOW_MA_PERIOD, config.ADX_PERIOD) + 2
 
 
-def run_backtest(data: Dict[str, pd.DataFrame], starting_equity: float = None) -> BacktestResult:
+def run_backtest(
+    data: Dict[str, pd.DataFrame], starting_equity: float = None, daily_data: Dict[str, pd.DataFrame] = None,
+) -> BacktestResult:
     """
     data: {symbol: DataFrame} indexed by timestamp with open/high/low/close/volume
     columns, as returned by backtest.data.load_universe().
+    daily_data: optional {symbol: DataFrame} of daily bars (same shape), used
+    for the long-term trend filter (bot/trend_filter.py). If omitted, the
+    filter is skipped regardless of config.TREND_FILTER_ENABLED, since there's
+    no daily data to gate against.
     """
     starting_equity = starting_equity if starting_equity is not None else config.ACCOUNT_EQUITY_USD
     portfolio = Portfolio(equity=starting_equity, peak_equity=starting_equity)
     cash = starting_equity
+
+    apply_trend_filter = config.TREND_FILTER_ENABLED and daily_data is not None
+    trend_maps = {symbol: build_trend_map(df) for symbol, df in daily_data.items()} if apply_trend_filter else {}
 
     last_price: Dict[str, float] = {}
     entry_commissions: Dict[str, float] = {}
@@ -127,6 +137,11 @@ def run_backtest(data: Dict[str, pd.DataFrame], starting_equity: float = None) -
 
             if sig is Signal.FLAT or has_position:
                 continue
+
+            if apply_trend_filter:
+                trend = trend_maps.get(symbol, {}).get(ts.date())
+                if not entry_allowed(sig, trend):
+                    continue
 
             atr_value = atr(window, config.ATR_PERIOD).iloc[-1]
             if pd.isna(atr_value) or atr_value <= 0:

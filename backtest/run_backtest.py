@@ -27,10 +27,20 @@ def main() -> None:
     parser.add_argument("--start", default=None)
     parser.add_argument("--end", default=None)
     parser.add_argument("--equity", type=float, default=config.ACCOUNT_EQUITY_USD)
+    parser.add_argument("--no-trend-filter", action="store_true",
+                         help="Disable the long-term daily trend filter even if config.TREND_FILTER_ENABLED is True")
     args = parser.parse_args()
 
     data = load_universe(args.symbols, args.bar_size, args.start, args.end)
-    result = run_backtest(data, starting_equity=args.equity)
+
+    daily_data = None
+    if config.TREND_FILTER_ENABLED and not args.no_trend_filter:
+        try:
+            daily_data = load_universe(args.symbols, config.TREND_FILTER_BAR_SIZE)
+        except FileNotFoundError as e:
+            print(f"WARNING: trend filter enabled but daily data missing, running WITHOUT it: {e}")
+
+    result = run_backtest(data, starting_equity=args.equity, daily_data=daily_data)
     summary = summarize(result, starting_equity=args.equity)
     print_summary(summary)
 

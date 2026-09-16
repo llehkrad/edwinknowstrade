@@ -48,7 +48,8 @@ def _valid_combo(strategy_set: str, params: dict) -> bool:
     return True
 
 
-def run_grid_search(data, strategy_set: str, metric: str = "total_return_pct", max_drawdown_ceiling: float = None):
+def run_grid_search(data, strategy_set: str, metric: str = "total_return_pct", max_drawdown_ceiling: float = None,
+                     daily_data=None):
     grid = GRIDS[strategy_set]
     original_strategy_set = config.STRATEGY_SET
     original = {name: getattr(config, name) for name in grid}
@@ -64,7 +65,7 @@ def run_grid_search(data, strategy_set: str, metric: str = "total_return_pct", m
             for name, value in params.items():
                 setattr(config, name, value)
 
-            result = run_backtest(data, starting_equity=config.ACCOUNT_EQUITY_USD)
+            result = run_backtest(data, starting_equity=config.ACCOUNT_EQUITY_USD, daily_data=daily_data)
             summary = summarize(result, starting_equity=config.ACCOUNT_EQUITY_USD)
 
             if max_drawdown_ceiling is not None and summary["max_drawdown_pct"] > max_drawdown_ceiling:
@@ -90,10 +91,21 @@ def main() -> None:
     parser.add_argument("--max-drawdown", type=float, default=None,
                          help="Discard combos whose max drawdown exceeds this fraction, e.g. 0.15")
     parser.add_argument("--top", type=int, default=10)
+    parser.add_argument("--no-trend-filter", action="store_true",
+                         help="Disable the long-term daily trend filter even if config.TREND_FILTER_ENABLED is True")
     args = parser.parse_args()
 
     data = load_universe(args.symbols, config.BAR_SIZE)
-    results = run_grid_search(data, args.strategy_set, metric=args.metric, max_drawdown_ceiling=args.max_drawdown)
+
+    daily_data = None
+    if config.TREND_FILTER_ENABLED and not args.no_trend_filter:
+        try:
+            daily_data = load_universe(args.symbols, config.TREND_FILTER_BAR_SIZE)
+        except FileNotFoundError as e:
+            print(f"WARNING: trend filter enabled but daily data missing, running WITHOUT it: {e}")
+
+    results = run_grid_search(data, args.strategy_set, metric=args.metric, max_drawdown_ceiling=args.max_drawdown,
+                               daily_data=daily_data)
 
     print(f"\n=== Top {args.top} combos for strategy_set={args.strategy_set} by {args.metric} ===")
     for r in results[: args.top]:

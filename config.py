@@ -82,6 +82,18 @@ VWAP_EXIT_ATR_MULT = 0.3   # exit once back within this many ATRs of VWAP
 DONCHIAN_ENTRY_PERIOD = 20
 DONCHIAN_EXIT_PERIOD = 10
 
+# --- Long-term trend filter (daily bars) ---
+# Added 2026-09-16 as a mechanically distinct angle after 900+ configs of
+# pure 15-min TA signals showed no edge (see CLAUDE.md "Strategy search
+# findings") -- gates NEW entries by the prevailing multi-month direction
+# (daily close vs its own N-day SMA), using only the most recently
+# COMPLETED daily bar to avoid lookahead. Does not affect exits/stops.
+# 50 days chosen over the more common 200-day: with only ~1-2yr of real
+# history available, 200 days of warmup would eat most of it.
+TREND_FILTER_ENABLED = True
+TREND_FILTER_SMA_PERIOD = 50
+TREND_FILTER_BAR_SIZE = "1 day"
+
 # --- Portfolio-level exposure cap ---
 # SPY/QQQ/IWM are more correlated with each other than the original SPY/QQQ/BTC
 # template, so this cap is intentionally tighter than a naive per-instrument limit.

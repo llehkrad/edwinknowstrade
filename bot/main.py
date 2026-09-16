@@ -38,6 +38,7 @@ from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
 from bot.strategy_registry import get_strategies
+from bot.trend_filter import build_trend_map, entry_allowed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("bot.main")
@@ -46,6 +47,7 @@ ib = IB()
 portfolio = Portfolio()
 cash = config.ACCOUNT_EQUITY_USD
 entry_commissions: Dict[str, float] = {}
+trend_maps: Dict[str, dict] = {}  # symbol -> {date: "bullish"|"bearish"|None}, see bot/trend_filter.py
 halted = False  # set True once the circuit breaker fires; blocks new entries
 
 
@@ -198,6 +200,13 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
         if signal is Signal.FLAT or has_position or pd_isna(atr_value):
             return
 
+        bar_date = df["date"].iloc[-1]
+        bar_date = bar_date.date() if hasattr(bar_date, "date") else bar_date
+        trend = trend_maps.get(symbol, {}).get(bar_date)
+        if not entry_allowed(signal, trend):
+            logger.info("Skipping %s entry for %s: against long-term trend filter (trend=%s)", signal.value, symbol, trend)
+            return
+
         is_long = signal is Signal.BUY
         qty = risk_manager.position_size(portfolio.equity, atr_value, latest_price)
         if qty <= 0:
@@ -216,6 +225,17 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
 
 def pd_isna(value) -> bool:
     return value != value  # NaN check without importing pandas here
+
+
+def on_daily_bar_update(symbol: str):
+    def handler(bars, has_new_bar: bool):
+        if not has_new_bar:
+            return
+        df = util.df(bars)
+        if df is None or len(df) < 2:
+            return
+        trend_maps[symbol] = build_trend_map(df.set_index("date"))
+    return handler
 
 
 def shutdown(*_args) -> None:
@@ -248,6 +268,18 @@ def main() -> None:
         bar_lists[symbol] = bars
         bars.updateEvent += on_bar_update(symbol, contract, bar_lists, contracts)
         logger.info("Subscribed to live %s bars for %s", config.BAR_SIZE, symbol)
+
+        if config.TREND_FILTER_ENABLED:
+            daily_bars = ib.reqHistoricalData(
+                contract, endDateTime="", durationStr="2 Y",
+                barSizeSetting=config.TREND_FILTER_BAR_SIZE, whatToShow="TRADES", useRTH=True,
+                keepUpToDate=True,
+            )
+            daily_bars.updateEvent += on_daily_bar_update(symbol)
+            daily_df = util.df(daily_bars)
+            if daily_df is not None and len(daily_df) >= 2:
+                trend_maps[symbol] = build_trend_map(daily_df.set_index("date"))
+            logger.info("Subscribed to daily trend-filter bars for %s (%d-day SMA)", symbol, config.TREND_FILTER_SMA_PERIOD)
 
     ib.run()
 
