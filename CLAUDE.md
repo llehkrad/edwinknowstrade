@@ -5,10 +5,35 @@ Code lives at https://github.com/llehkrad/edwinknowstrade (`main` branch).
 Local git identity for this repo: user.name "Edwin", user.email
 darkhell85@gmail.com (repo-local config, not global).
 
-## Current status (as of 2026-09-12) — paused, waiting on IBKR paper account
-Phase 1 scaffolding, backtest harness, and tooling are built and pushed.
-Work is paused here because the IBKR paper trading account needs a business
-day to finish provisioning. Resume checklist below once it's ready.
+## Current status (as of 2026-09-16) — paper account live, tuning parameters
+Phase 1 scaffolding and backtest harness are built. Paper account
+(username `llehkradpaper`, account `DUT119165`) provisioned and connected
+successfully — real-time market data subscriptions share correctly from the
+live account. Real 6mo IBKR historical data pulled (Mar-Sep 2026, 3198 bars
+each for SPY/QQQ/IWM). First real backtest run (still on untuned placeholder
+parameters): **-9.92% return, 10.15% max drawdown, circuit breaker fired,
+233 round trips, 36% win rate.** Not a verdict — those parameters were
+always known placeholders. Parameter grid search on real data is the
+immediate next step (resume checklist items 4+ below).
+
+**Two real bugs found and fixed while getting the paper connection working
+(2026-09-16), before any order was placed:**
+1. `ib_insync`'s `eventkit` dependency calls `asyncio.get_event_loop()` at
+   import time, relying on implicit loop-creation behavior Python 3.14
+   removed — raised `RuntimeError` before `ib_insync` finished importing.
+   Fixed with a shared shim (`ib_compat.py`), applied before every
+   `ib_insync` import.
+2. `bot/main.py`'s equity tracking was a no-op placeholder
+   (`portfolio.update_equity(portfolio.equity)` — reassigning a value to
+   itself). Equity never actually moved from `config.ACCOUNT_EQUITY_USD` in
+   live/paper mode, which meant **the drawdown circuit breaker could never
+   fire** — the exact safety mechanism this whole project's unsupervised-
+   overnight design depends on. Fixed with real cash + mark-to-market
+   accounting (same approach `backtest/engine.py` already used), driven by
+   actual IBKR fill prices/commissions rather than assumed bar-close prices.
+   Deliberately NOT reconciled against `ib.accountSummary()`'s
+   NetLiquidation — IBKR seeded this paper account with an unrelated ~$1M,
+   not the $5k the strategy is actually sized against.
 
 **Built so far:**
 - `config.py` — all Phase 1 parameters (see "Decisions resolved" below).
@@ -54,21 +79,34 @@ day to finish provisioning. Resume checklist below once it's ready.
   Phase 2 later.
 - Confirmed **TWS** (Trader Workstation) is required for the API, NOT IBKR
   Desktop (a separate, newer IBKR app with no API support as of 2026).
-- Paper trading account requested; IBKR said to allow until the next
-  business day for it to provision. **This is the current blocker.**
+- Paper trading account provisioned and confirmed working 2026-09-16
+  (username `llehkradpaper`, account `DUT119165`). Note: IBKR seeds paper
+  accounts with an unrelated ~$1M NetLiquidation by default — irrelevant to
+  this project since equity is tracked internally from
+  `config.ACCOUNT_EQUITY_USD`, not from the broker's reported balance (see
+  bug #2 above).
+- Historical-data pulls occasionally fail with IBKR error 162 ("Trading TWS
+  session is connected from a different IP address") even with only TWS
+  connected — seems to be a stale historical-data-farm connection inside
+  TWS. Fix: fully close and reopen TWS (not just log out), log back into
+  paper trading, wait for all data-farm status icons to go green, retry.
 
-## Resume checklist (once the paper account is ready)
+## Resume checklist
 1. Log into TWS with paper trading credentials (not live) — confirm the
    title bar says "Paper Trading". Verify API settings survived (Enable
-   ActiveX/Socket Clients, Read-Only API unchecked, port 7497).
+   ActiveX/Socket Clients, Read-Only API unchecked, port 7497). ✅ done
+   2026-09-16.
 2. Run `python check_ibkr_connection.py` — confirms connectivity and that
-   SPY/QQQ/IWM show Live (not delayed) data.
+   SPY/QQQ/IWM show Live (not delayed) data. ✅ done 2026-09-16.
 3. Run `python -m backtest.fetch_ibkr_data --duration "6 M"` to pull real
    historical bars (replaces the synthetic data in `data/historical/`). Must
-   be run with `-m` (module form), not as a plain script path.
-4. Re-run `python -m backtest.run_backtest` and
-   `python -m backtest.optimize` on the real data — this result is the one
-   that actually matters, unlike the synthetic-data run above.
+   be run with `-m` (module form), not as a plain script path. ✅ done
+   2026-09-16 (3198 bars/symbol, Mar-Sep 2026).
+4. Re-run `python -m backtest.run_backtest` — done 2026-09-16, see "Current
+   status" above for the baseline (untuned) result. Then run
+   `python -m backtest.optimize` on the real data — **this result is the
+   one that actually matters**, unlike the earlier synthetic-data run.
+   In progress as of 2026-09-16.
 5. Regenerate the dashboard with `python -m backtest.build_dashboard
    --real-data` (drops the synthetic-data warning banner).
 6. Run `python -m backtest.run_monte_carlo` on the real `fills.csv` to see
