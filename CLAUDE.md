@@ -32,23 +32,41 @@ already tested. Re-ran both grid searches (648 `sma_zscore` + 216
 - `vwap_donchian` improved more modestly with the same filter (best -7.4%
   -> -6.46%), reinforcing that `sma_zscore` is the more promising family.
 
-**Honest assessment: not yet a demonstrated profitable edge.** The median
-outcome is flat and it's a coin flip whether this specific sample nets
-positive or negative. But it's a fundamentally different, much better-
-controlled risk profile than the 900+ configs from 2026-09-16 (which
-reliably lost money with 60-67% odds of tripping the circuit breaker) --
-real, measurable progress from one deliberate, theory-driven change, not
-another blind parameter shuffle. This result is already on the full
-1-year dataset (the harder test that previously made the old "best"
-6-month combo's edge collapse) -- it didn't need a separate generalization
-check the way earlier findings did.
+**CORRECTED same day after proper out-of-sample validation -- the
+"breakthrough" above does NOT hold up.** Ran a true time-based train/test
+split: grid-searched `sma_zscore` + trend filter on the FIRST HALF of the
+1yr data only (Sep 2025-Mar 2026), then re-tested the top 5 in-sample
+combos against the SECOND HALF (Mar-Sep 2026), which the search never saw.
+Result: **every one of the top 5 in-sample winners -- including combos
+with in-sample profit factor above 1.0 (genuinely profitable-looking, not
+just least-bad) -- turned into a clear loss out-of-sample** (profit factor
+0.37-0.79, returns -0.97% to -3.78%). This is a textbook overfitting
+signature. It also explains the "-0.09% essentially flat" full-year number
+above: that exact combo's full-year result was quietly an average of a
++0.40% first half and a -0.97% second half, not genuinely flat performance
+throughout -- the full-year single-window search was not, in fact, a
+sufficient generalization check.
 
-**Not yet done, worth doing before trusting this further:** proper
-out-of-sample validation (e.g. fit on the first half of the 1yr data, test
-on the second half, rather than grid-searching the whole window at once)
--- everything above was found by searching the full dataset, so some
-degree of in-sample selection bias remains even though the pattern looks
-healthier than prior findings.
+**What DOES still look real: the drawdown/risk reduction.** Out-of-sample
+drawdowns stayed contained (2.5%-3.8%, no circuit breaker trips) across
+all 5 combos tested -- consistent with the trend filter being a mechanical
+effect (it structurally blocks counter-trend entries regardless of which
+window you're in) rather than something curve-fit to one dataset. So:
+**the risk reduction from the trend filter looks durable; profitability
+from the specific entry/exit parameters does not.**
+
+**Updated honest assessment (2026-09-17, end of day): still no validated
+profitable edge.** The trend filter is a legitimate, keep-it improvement
+for risk management, but no parameter combination has cleared a genuine
+out-of-sample bar. Don't re-describe the trend filter as a "breakthrough"
+or the -0.09% full-year number as meaningful without this correction
+attached. Next steps, if resuming: (a) don't trust single-window full-
+period grid search results again without an out-of-sample check baked in
+by default, (b) consider whether 1yr of data is simply too little to
+reliably validate a 6-parameter search space without overfitting, (c) the
+options listed in "Strategy search findings" (2026-09-16) below remain
+open (different timeframe, different instruments, audit the regime
+filter, or accept this approach may not have edge here).
 
 ## Status history (2026-09-16) — for context on how we got here
 Phase 1 scaffolding, backtest harness, and the IBKR paper connection are
@@ -380,18 +398,22 @@ file captures the adapted plan actually decided on.
   Telegram.
 
 ## Decisions still open
-- **Whether the current strategy approach has a real, robust edge.**
-  Updated 2026-09-17: the 50-day trend filter moved this from "900+ configs,
-  all reliably losing" to "best combo essentially flat with a well-
-  controlled risk profile" (see "Current status" above) — a real
-  improvement, but not yet a demonstrated edge. Proper out-of-sample
-  validation (train/test split by time, not searching the whole window at
-  once) is the natural next step before trusting it further.
-- Exact strategy parameter VALUES: `MR_MA_PERIOD=30, MR_ENTRY_STD_DEV=2.5,
-  TF_FAST_MA_PERIOD=10, TF_SLOW_MA_PERIOD=50, ADX_TREND_THRESHOLD=25,
-  STOP_LOSS_ATR_MULT=4.0` is the current best candidate (with the trend
-  filter enabled) — still NOT set as the `config.py` defaults, since it
-  hasn't cleared out-of-sample validation yet.
+- **Whether the current strategy approach has a real, robust edge — still
+  unresolved as of end of day 2026-09-17.** The 50-day trend filter's
+  apparent full-year improvement did NOT survive a proper time-based
+  train/test split: every one of the top 5 in-sample combos (including
+  ones with in-sample profit factor > 1.0) turned into a clear loss on
+  held-out data (see "Current status" above, "CORRECTED" section). The
+  trend filter's drawdown reduction still looks durable and worth keeping;
+  no specific parameter combo has demonstrated real out-of-sample edge.
+  Don't set any of the tested combos as `config.py` defaults based on
+  full-window search results alone — require an out-of-sample pass first.
+- The four options from "Strategy search findings" (2026-09-16) remain the
+  live menu for what to try next: different timeframe, different
+  instruments, audit the regime filter, or accept this approach may not
+  have edge on SPY/QQQ/IWM at 15-min bars. A fifth to consider given
+  today's finding: whether 1yr of real data is simply too little to
+  reliably validate a 6-parameter search space at all without overfitting.
 - Fixed watchlist (SPY/QQQ/IWM only) vs. later screener/scanner approach
   for a wider universe — deferred, not needed for Phase 1.
 
