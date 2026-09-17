@@ -1,6 +1,35 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (2026-09-18, late night) — live paper trading started; two live-only bugs found and fixed
+## Current status (2026-09-18, late night) — TWS's nightly restart disconnected the bot; no auto-reconnect exists yet
+**~28 minutes into the first live run** (after both bugs below were fixed),
+the bot's log showed `ERROR Peer closed connection.` and went silent --
+TWS itself had closed the socket, not just the API. A reconnect attempt
+got `ConnectionRefusedError: [WinError 1225]` (connection actively
+refused, not just an API-side rejection), confirming TWS itself had gone
+down, not just the API layer -- consistent with IBKR TWS's well-known
+behavior of forcing a full restart roughly once every 24 hours (commonly
+around this time of night) that requires a manual relogin; it does not
+come back on its own. `bot/main.py` has no reconnect/retry logic at all --
+`ib.connect()` is called once in `main()`, and a lost connection just
+leaves `ib.run()` idling forever with a dead socket, no new bars, no
+ability to trade, and (as of this incident) no alert distinct from any
+other ERROR-level log line.
+
+**This directly threatens the project's core design constraint** ("the bot
+runs fully unsupervised overnight while the operator sleeps," see
+"Operator context" below) -- as built, one nightly TWS restart silently
+ends the trading session for the rest of the night with nobody watching.
+**Not yet fixed, next step when resuming**: before any unattended/Lightsail
+deployment, `bot/main.py` needs either (a) reconnect-with-backoff logic
+around `ib.connect()`/`ib.run()`, and/or (b) IBC ("IB Controller" -- the
+standard community tool for automating TWS's login and restart handling,
+widely used for exactly this problem), and either way a Slack alert
+specifically for "lost connection to TWS" distinct from routine ERROR
+logs, since this failure mode is silent otherwise. Until this is solved,
+this bot is not safe to leave running unattended overnight -- tonight's
+run was manually restarted by the operator after being paged.
+
+## Status history (2026-09-18, late night) — live paper trading started; two live-only bugs found and fixed
 **First live run of `bot/main.py` against the paper account (DUT119165), supervised.**
 Both bugs below share the same root cause: `backtest/data.py` returns bars
 indexed by a `DatetimeIndex` (no separate `date` column), but live bars from
