@@ -1,11 +1,106 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (as of 2026-09-18) — mean-reversion-only clears out-of-sample for the first time
+**The strongest validated result in the project so far**, found by auditing
+the ADX regime filter (see "ADX regime-filter audit" below) and testing
+mean-reversion in isolation instead of the ADX-gated hybrid.
+
+**What changed:** an autocorrelation audit of the ADX regime filter found
+that "trending" (high-ADX) 15-min bars consistently show NEGATIVE forward
+autocorrelation across every horizon tested (15min to a full session) for
+SPY/QQQ/IWM -- the opposite of what trend-following assumes. This explains
+why trend-following contributed near-zero/negative PnL across every prior
+backtest. Tested disabling the regime switch entirely (`ADX_TREND_THRESHOLD
+= 999`, so mean-reversion runs 100% of the time) with a proper time-based
+train/test split from the start (grid search on first half of 1yr real
+data, test on second half never searched over):
+
+- **Best combo: `MR_MA_PERIOD=50, MR_ENTRY_STD_DEV=2.5,
+  MR_EXIT_STD_DEV=0.35, STOP_LOSS_ATR_MULT=4.0`** (trend filter still
+  enabled) -> in-sample +0.75% (PF 1.23), **out-of-sample +0.66% (PF
+  1.18)** -- stayed profitable on data the search never touched. A second
+  nearby combo (exit=0.2 instead of 0.35) also held up: +0.67% in-sample ->
+  +0.59% out-of-sample (PF 1.16).
+- The other 3 of the top-5 in-sample combos degraded to near-breakeven
+  (PF 0.92-0.97) rather than collapsing to a clear loss like the
+  2026-09-17 regime-switching finding did -- a much gentler degradation.
+- All 5 top combos converged on the SAME entry parameters (`MR_MA_PERIOD=50`,
+  the longest tested; `MR_ENTRY_STD_DEV=2.5`, the most selective) -- a
+  stable choice, not scattered noise. The two combos that stayed profitable
+  both used the WIDEST stop (4.0x ATR), consistent with the standing
+  finding that premature stop-outs are the dominant loss driver.
+- Monte Carlo (5000 bootstrap resamples of the actual 36 out-of-sample
+  trades): median return **+0.7%**, P(loss) **34.3%** (roughly 2-in-3 odds
+  of profit, not a coin flip), P(hit circuit breaker) 0.0%, worst drawdown
+  across all 5000 sims 5.8% (well inside the 10% threshold).
+
+**Important caveat, not yet resolved:** the aggregate out-of-sample profit
+is concentrated in IWM (+$83) while QQQ (-$18) and SPY (-$32) were both
+slightly negative individually. This is real progress, not a disqualifier,
+but it means the result currently rests more on one instrument than on a
+broadly consistent effect across all three -- worth investigating (e.g.
+does it hold on IWM alone with more history, or on SPY/QQQ separately)
+before trusting this as a robust, instrument-agnostic edge.
+
+**Also tested and ruled out same day:** dropping from 15-min to 5-min bars.
+Same autocorrelation audit on 6mo of real 5-min data gave inconsistent
+results across instruments (SPY showed a theory-consistent flip to positive
+trending-bar autocorrelation at longer horizons; QQQ and IWM did not) --
+not a clear enough signal to justify the added trading frequency and
+commission drag of finer bars. Stuck with 15-min.
+
+**Honest read:** this is the first result in the project to survive genuine
+out-of-sample testing with a positive outcome, not just "less negative."
+Still based on a modest 36-trade out-of-sample sample and concentrated in
+one instrument -- promising and worth taking seriously, not yet "proven."
+Don't set this as `config.py`'s defaults or start paper trading purely on
+this without addressing the IWM-concentration question first.
+
+### ADX regime-filter audit (2026-09-18) — the finding that led to the above
+Before testing mean-reversion alone, audited whether the ADX-based regime
+filter (`bot/regime.py`) actually does what its design assumes: high ADX
+should mean price continues trending (favoring `trend_following`), low ADX
+should mean price mean-reverts (favoring `mean_reversion`). Checked on real
+15-min data for all three instruments:
+
+- **ADX distribution**: median ADX sits almost exactly at the default
+  threshold of 25 for all three (SPY 25.6, QQQ 26.6, IWM 25.4) -- an
+  almost even trending/ranging split at the default setting, not an
+  extreme or unusual configuration.
+- **Regime persistence**: median run length 18-23 bars (roughly half a
+  trading day) before flipping -- not erratic bar-to-bar noise, some
+  genuine stickiness, only 8-17% of runs are very short (<=3 bars).
+  Persistence itself isn't obviously broken.
+- **The actual test that mattered**: computed autocorrelation of
+  return[t] vs. forward return over K bars (K = 1, 4, 8, 16, 26, i.e.
+  15min to a full session), split by regime label. Trend-following theory
+  predicts trending bars should show POSITIVE autocorrelation (momentum
+  persists); mean-reversion theory predicts ranging bars should show
+  NEGATIVE autocorrelation (price reverts). Result: **"trending" bars
+  showed NEGATIVE autocorrelation at every single horizon, for all three
+  instruments** -- the opposite of the trend-following assumption.
+  "Ranging" bars were also mostly negative (consistent with mean-reversion)
+  and in several cases MORE strongly mean-reverting than the "trending"
+  bars. Example (SPY, K=8 bars): trending=-0.017, ranging=-0.037.
+
+**Conclusion**: at 15-min bars, SPY/QQQ/IWM don't show the trend-
+continuation behavior the regime filter's trend-following branch assumes.
+Both regimes lean mean-reverting; ADX just isn't cleanly separating two
+behaviorally-different states the way the architecture assumes. This is
+also consistent with every prior backtest's PnL-by-strategy breakdown,
+where `trend_following`/`donchian_breakout` consistently contributed near-
+zero or negative PnL vs. `mean_reversion`/`vwap_reversion` contributing
+positively, and with the ADX threshold (20/25/30) barely moving grid-search
+results -- tuning a gate built on a false premise doesn't matter much. This
+directly motivated testing mean-reversion in isolation (see above), which
+produced the first out-of-sample-positive result in the project.
+
 ## Repository
 Code lives at https://github.com/llehkrad/edwinknowstrade (`main` branch).
 Local git identity for this repo: user.name "Edwin", user.email
 darkhell85@gmail.com (repo-local config, not global).
 
-## Current status (as of 2026-09-17) — trend filter found real improvement, not yet profitable
+## Status history (2026-09-17) — trend filter found real improvement, not yet profitable
 **Update 2026-09-17: added a 50-day daily trend filter (`bot/trend_filter.py`)
 that changed the picture.** After the 2026-09-16 pause, gated NEW entries
 (never exits/stops) by whether yesterday's daily close was above/below its
@@ -398,22 +493,25 @@ file captures the adapted plan actually decided on.
   Telegram.
 
 ## Decisions still open
-- **Whether the current strategy approach has a real, robust edge — still
-  unresolved as of end of day 2026-09-17.** The 50-day trend filter's
-  apparent full-year improvement did NOT survive a proper time-based
-  train/test split: every one of the top 5 in-sample combos (including
-  ones with in-sample profit factor > 1.0) turned into a clear loss on
-  held-out data (see "Current status" above, "CORRECTED" section). The
-  trend filter's drawdown reduction still looks durable and worth keeping;
-  no specific parameter combo has demonstrated real out-of-sample edge.
-  Don't set any of the tested combos as `config.py` defaults based on
-  full-window search results alone — require an out-of-sample pass first.
-- The four options from "Strategy search findings" (2026-09-16) remain the
-  live menu for what to try next: different timeframe, different
-  instruments, audit the regime filter, or accept this approach may not
-  have edge on SPY/QQQ/IWM at 15-min bars. A fifth to consider given
-  today's finding: whether 1yr of real data is simply too little to
-  reliably validate a 6-parameter search space at all without overfitting.
+- **Whether the current strategy approach has a real, robust edge — first
+  genuinely promising sign as of 2026-09-18, still not fully resolved.**
+  Mean-reversion-only (regime switch to trend-following disabled) with a
+  50-period MA, selective entries, and a wide 4x-ATR stop cleared a proper
+  out-of-sample test for the first time (+0.66% out-of-sample return, PF
+  1.18, Monte Carlo P(loss) 34.3%) — see "Current status" above. Caveat:
+  the profit is concentrated in IWM, not spread evenly across all three
+  instruments, and the out-of-sample sample is only 36 trades. Don't set
+  this as `config.py` defaults or begin paper trading on it without
+  resolving the IWM-concentration question first (e.g. does it hold on
+  IWM alone with more history, or separately on SPY/QQQ).
+- The 2026-09-17 finding (ADX-gated hybrid + trend filter) did NOT survive
+  out-of-sample testing and should not be revisited as a candidate — see
+  "Status history (2026-09-17)" below for what was tried and ruled out.
+- Remaining open options from "Strategy search findings" (2026-09-16):
+  different timeframe (5-min was tried 2026-09-18 and ruled out; daily/4hr
+  untested), different instruments, or accept simple TA may not have edge
+  on SPY/QQQ/IWM. Also open: whether 1yr of real data is enough to reliably
+  validate even a simpler 4-parameter search without overfitting.
 - Fixed watchlist (SPY/QQQ/IWM only) vs. later screener/scanner approach
   for a wider universe — deferred, not needed for Phase 1.
 
