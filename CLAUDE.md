@@ -1,6 +1,52 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (as of 2026-09-18, continued) — the edge is IWM-specific, not SPY/QQQ/IWM-general
+## Current status (as of 2026-09-18, latest) — VWAP-reversion rescues SPY, confirms IWM independently
+**Follow-up to the "IWM-specific" finding below: tested VWAP-reversion in
+isolation** (`config.STRATEGY_SET = "vwap_reversion_only"`, added to
+`bot/strategy_registry.py` — both regime branches map to `vwap_reversion`,
+same pattern as `mean_reversion_only`) — never tested standalone before,
+only inside the discredited ADX-gated `vwap_donchian` hybrid. Same
+instrument-specific grid search + train/test split methodology (48 combos:
+`VWAP_ENTRY_ATR_MULT`, `VWAP_EXIT_ATR_MULT`, `STOP_LOSS_ATR_MULT`).
+
+- **SPY — previously zero edge with SMA-zscore mean-reversion, now shows a
+  real signal with VWAP-reversion.** All 3 of SPY's own top in-sample
+  combos stayed non-negative out-of-sample (best:
+  `VWAP_ENTRY_ATR_MULT=2.5, VWAP_EXIT_ATR_MULT=0.2, STOP_LOSS_ATR_MULT=4.0`
+  → in-sample +0.26%/PF 1.32, out-of-sample **+0.35%/PF 1.50**, actually
+  IMPROVED out-of-sample). Monte Carlo (5000 resamples of the 16 actual
+  out-of-sample trades): median +0.4%, **P(loss) 25.1%** (~3-in-4 odds of
+  profit), worst drawdown 1.7%. Confirms SPY's earlier "no edge" finding
+  was specific to the SMA-zscore mechanism, not SPY itself — it needed a
+  different reversion type (volume-weighted, session-anchored vs.
+  fixed-period SMA/z-score).
+- **IWM — now the strongest result in the entire project, confirmed via a
+  SECOND, structurally different reversion mechanism.** Best combo
+  (`VWAP_ENTRY_ATR_MULT=2.5, VWAP_EXIT_ATR_MULT=0.35, STOP_LOSS_ATR_MULT=4.0`)
+  → in-sample +0.84%/PF 1.55, out-of-sample **+1.42%/PF 3.10** (also
+  IMPROVED out-of-sample). All 3 of IWM's top combos improved
+  out-of-sample rather than degrading. Monte Carlo (5000 resamples of the
+  18 actual out-of-sample trades): median +1.4%, **P(loss) just 2.2%**
+  (97.8% of resampled simulations profitable), worst drawdown across all
+  5000 sims only 1.7%. Two independent, mechanistically different
+  strategies (SMA-zscore mean-reversion AND VWAP deviation) both find real,
+  out-of-sample-validated edge in IWM specifically — strong convergent
+  evidence this is real, not a fluke of one particular technique.
+- **QQQ — still nothing.** Both reversion mechanisms tested (SMA-zscore,
+  VWAP) failed out-of-sample on QQQ with its own best-fit parameters.
+  QQQ looks like the genuinely hardest of the three — consistent with
+  being an extremely liquid, heavily-arbitraged large-cap tech index.
+
+**Updated recommendation**: IWM is validated two independent ways and is
+the strongest candidate by far. SPY now also has a real (more modest)
+signal, but specifically via VWAP-reversion, NOT SMA-zscore — don't
+conflate the two mechanisms when deciding what to trade on SPY. QQQ has
+no validated edge from mean-reversion approaches; if pursued further it
+needs a genuinely different strategy type (momentum ranking, pairs/spread
+vs. another instrument, or move to Phase 2's volatility-premium concept
+for QQQ specifically) rather than more reversion-parameter tuning.
+Sample sizes remain modest (SPY: 16 out-of-sample trades, IWM: 18) —
+real and consistent findings, not yet "large-sample proven."
 **Follow-up to the mean-reversion-only finding below: investigated why the
 aggregate out-of-sample profit was concentrated in IWM.** Ran the SAME
 combo per-instrument alone, then ran a full instrument-specific parameter

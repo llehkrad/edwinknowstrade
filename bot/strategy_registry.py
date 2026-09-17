@@ -19,6 +19,13 @@ _REGISTRY = {
     # trades -- cleaner than the ADX_TREND_THRESHOLD=999 hack used to first
     # test this.
     "mean_reversion_only": (mean_reversion, mean_reversion),
+    # Added 2026-09-18: mean_reversion_only cleared out-of-sample validation
+    # on IWM but not SPY/QQQ. Testing whether a different reversion
+    # mechanism (VWAP deviation, volume-weighted and session-reset, vs.
+    # mean_reversion's fixed-period SMA/z-score) fares differently on
+    # SPY/QQQ specifically -- never tested in isolation before, only inside
+    # the now-discredited ADX-gated vwap_donchian hybrid.
+    "vwap_reversion_only": (vwap_reversion, vwap_reversion),
 }
 
 
