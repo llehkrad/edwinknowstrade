@@ -1,6 +1,49 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (as of 2026-09-18, latest) — VWAP-reversion rescues SPY, confirms IWM independently
+## Current status (as of 2026-09-18, latest) — pairs trading and momentum rotation both ruled out for QQQ
+**Follow-up: tested two genuinely different strategy types for QQQ**
+specifically, since two reversion mechanisms had already failed on it.
+Both built as standalone research scripts (not wired into the
+single-instrument bot architecture -- pairs/rotation need cross-instrument
+logic the rest of the project doesn't have), same out-of-sample discipline.
+
+- **QQQ/SPY pairs trading** (log-price-ratio spread, z-scored, dollar-
+  neutral long/short legs): every one of the top-5 in-sample combos was
+  ALREADY negative before out-of-sample testing (best in-sample: -0.44%,
+  degrading to -2.04% to -2.93% out-of-sample). All top combos converged
+  on the longest lookback tested (400 bars) with very few trades (3-13
+  over 6 months) -- the spread doesn't mean-revert cleanly. Plausible
+  reason: QQQ (tech-heavy) vs. SPY (broad market) reflects real, persistent
+  sector rotation (rates, growth-vs-value cycles), not noise around a
+  stable equilibrium -- correlation between two instruments does not imply
+  their ratio is mean-reverting (cointegration is a stronger, different
+  property). Ruled out.
+- **Cross-sectional momentum rotation** (rank SPY/QQQ/IWM by trailing
+  return, hold the top-ranked, rebalance periodically): ALL 15 in-sample
+  combos were negative (-2% to -4%), but the same top-5 combos showed
+  startling out-of-sample returns of +9% to +14.5% -- initially looked like
+  a huge out-of-sample-positive discovery. **Checked against simple
+  buy-and-hold on the same out-of-sample window first, which returned
+  13.6% (SPY), 17.9% (QQQ), 15.4% (IWM) -- the rotation strategy
+  underperformed passive buy-and-hold in every case.** The apparent gain
+  was pure market beta (the second half was a strong sustained rally) --
+  an always ~90%-long, unhedged rotation strategy captures that rally by
+  construction, regardless of whether the ranking signal itself has any
+  value. Not a validated edge; ruled out. Important general lesson: any
+  always-invested, long-only strategy MUST be checked against buy-and-hold
+  before treating its returns as evidence of anything, not just judged on
+  absolute return.
+
+**Where this leaves QQQ**: four different approaches now ruled out
+(SMA-zscore mean-reversion, VWAP-reversion, QQQ/SPY pairs trading,
+momentum rotation). Remaining untried, lower-priority ideas: a
+regression/cointegration-tested hedge ratio for pairs (rather than
+dollar-neutral 1:1), a market-neutral long-top/short-bottom rotation
+variant (removes the beta-capture problem the long-only version had), or
+accepting QQQ may need Phase 2's options/volatility-premium approach
+instead of any directional strategy.
+
+## Status history (2026-09-18, earlier) — VWAP-reversion rescues SPY, confirms IWM independently
 **Follow-up to the "IWM-specific" finding below: tested VWAP-reversion in
 isolation** (`config.STRATEGY_SET = "vwap_reversion_only"`, added to
 `bot/strategy_registry.py` — both regime branches map to `vwap_reversion`,
