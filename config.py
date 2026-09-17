@@ -94,6 +94,43 @@ TREND_FILTER_ENABLED = True
 TREND_FILTER_SMA_PERIOD = 50
 TREND_FILTER_BAR_SIZE = "1 day"
 
+# --- Per-instrument strategy configuration ---
+# Added 2026-09-18 after extensive out-of-sample testing found genuinely
+# different validated approaches per instrument (see CLAUDE.md "Strategy
+# search findings"): SPY and IWM both show real, out-of-sample-validated
+# edge via VWAP-reversion; QQQ shows none across four different approaches
+# tried. Applied per-symbol via bot/instrument_config.py, which overrides
+# the relevant config.* attributes for whichever symbol is currently being
+# processed -- the same config-monkeypatching pattern backtest/optimize.py
+# already uses for grid-search combos. Safe here because both bot/main.py
+# and backtest/engine.py process one symbol fully (regime read through
+# entry/exit decision) before moving to the next within a given bar --
+# single-threaded and strictly sequential, never interleaved.
+INSTRUMENT_CONFIG = {
+    "SPY": {
+        "STRATEGY_SET": "vwap_reversion_only",
+        "VWAP_ENTRY_ATR_MULT": 2.5,
+        "VWAP_EXIT_ATR_MULT": 0.2,
+        "STOP_LOSS_ATR_MULT": 4.0,
+    },
+    "IWM": {
+        "STRATEGY_SET": "vwap_reversion_only",
+        "VWAP_ENTRY_ATR_MULT": 2.5,
+        "VWAP_EXIT_ATR_MULT": 0.35,
+        "STOP_LOSS_ATR_MULT": 4.0,
+    },
+    "QQQ": {
+        # QQQ's own best-fit IN-SAMPLE parameters -- already shown to fail
+        # out-of-sample (see CLAUDE.md). Kept active deliberately, to
+        # confirm the "no edge" finding via live paper trading, NOT to try
+        # to make QQQ profitable.
+        "STRATEGY_SET": "vwap_reversion_only",
+        "VWAP_ENTRY_ATR_MULT": 2.5,
+        "VWAP_EXIT_ATR_MULT": 0.5,
+        "STOP_LOSS_ATR_MULT": 2.0,
+    },
+}
+
 # --- Portfolio-level exposure cap ---
 # SPY/QQQ/IWM are more correlated with each other than the original SPY/QQQ/BTC
 # template, so this cap is intentionally tighter than a naive per-instrument limit.

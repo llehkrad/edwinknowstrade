@@ -34,6 +34,7 @@ import config
 from bot import risk_manager, trade_log
 from bot.alerts import send_slack_alert
 from bot.indicators import atr
+from bot.instrument_config import apply_instrument_overrides
 from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
@@ -162,6 +163,8 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
         if not has_new_bar:
             return  # ignore intrabar ticks; only act on completed bars
 
+        apply_instrument_overrides(symbol)
+
         df = util.df(bars)
         if df is None or len(df) < max(config.MR_MA_PERIOD, config.TF_SLOW_MA_PERIOD, config.ADX_PERIOD) + 1:
             return  # not enough history yet
@@ -252,6 +255,9 @@ def main() -> None:
     logger.info("Connected to IBKR at %s:%s", config.IB_HOST, config.IB_PORT)
     logger.info("Tracking equity internally from config.ACCOUNT_EQUITY_USD=%s (not IBKR's reported account balance)",
                 config.ACCOUNT_EQUITY_USD)
+
+    for symbol in config.INSTRUMENTS:
+        logger.info("Instrument config for %s: %s", symbol, config.INSTRUMENT_CONFIG.get(symbol, "(uses global defaults)"))
 
     bar_lists = {}
     contracts = {}
