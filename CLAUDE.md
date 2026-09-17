@@ -1,6 +1,53 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (as of 2026-09-18) — mean-reversion-only clears out-of-sample for the first time
+## Current status (as of 2026-09-18, continued) — the edge is IWM-specific, not SPY/QQQ/IWM-general
+**Follow-up to the mean-reversion-only finding below: investigated why the
+aggregate out-of-sample profit was concentrated in IWM.** Ran the SAME
+combo per-instrument alone, then ran a full instrument-specific parameter
+search (same 144-combo MR grid, same train/test split) separately for
+each of SPY, QQQ, IWM rather than forcing them to share one parameter set.
+
+- **SPY, own best-fit params** (`MR_MA_PERIOD=10, MR_ENTRY_STD_DEV=2.5,
+  MR_EXIT_STD_DEV=0.75, STOP_LOSS_ATR_MULT=2.0`): in-sample profit factor
+  as high as 2.51 -- but ALL 3 of SPY's own top candidates collapsed
+  out-of-sample (PF 0.62-0.87, every one negative). Instrument-specific
+  tuning did not rescue SPY. No validated edge.
+- **QQQ, own best-fit params** (`MR_MA_PERIOD=30, MR_ENTRY_STD_DEV=2.5,
+  MR_EXIT_STD_DEV=0.2, STOP_LOSS_ATR_MULT=4.0`): the top-ranked in-sample
+  combo was actually slightly NEGATIVE in-sample (-0.13%) and only ranked
+  #1 because everything else in QQQ's grid was worse. Its positive
+  out-of-sample flip (+1.32%) is far more likely noise than signal, since
+  it was never good to begin with. No validated edge.
+- **IWM, own best-fit params**: all 3 of IWM's own top candidates
+  independently converged on essentially the SAME recipe the shared-
+  universe search already found (`MR_MA_PERIOD=50, MR_ENTRY_STD_DEV=2.5,
+  STOP_LOSS_ATR_MULT=4.0`, varying only the exit threshold) -- and all 3
+  held up strongly out-of-sample: **profit factor 2.22-3.24, returns
+  +1.12% to +1.61%, win rate ~71% in every case.** Two independent search
+  paths (shared-universe grid, and IWM-only grid) arrived at the same
+  answer -- this isn't one lucky combo.
+
+**Conclusion: the edge is real but IWM-specific, not a general SPY/QQQ/IWM
+phenomenon.** Economically plausible: IWM (Russell 2000 small-caps) is
+meaningfully less efficiently arbitraged than SPY (S&P 500) and QQQ
+(Nasdaq-100), which are among the most heavily-traded, most efficiently
+priced instruments in the world -- short-term mean-reversion surviving
+specifically in the least-efficient of the three is a sensible pattern,
+not a coincidence.
+
+**Recommendation, not yet acted on:** narrow Phase 1's mean-reversion
+strategy to IWM specifically rather than continuing to force SPY/QQQ into
+an approach that isn't working for them. This changes the "fixed watchlist"
+question in "Decisions still open" from deferred/theoretical to something
+with an actual answer: IWM looks tradeable with this approach, SPY/QQQ do
+not (at least not with mean-reversion at 15-min bars -- they were never
+tested with a genuinely different approach post-ADX-audit). Sample size
+caveat still applies: IWM's validation rests on ~31 total trades across
+the 1yr split (17 in-sample + 14 out-of-sample) -- a real, consistent
+signal, but still a modest sample. Worth continuing to validate with more
+history before increasing confidence further or considering paper trading.
+
+## Status history (2026-09-18, morning) — mean-reversion-only clears out-of-sample for the first time
 **The strongest validated result in the project so far**, found by auditing
 the ADX regime filter (see "ADX regime-filter audit" below) and testing
 mean-reversion in isolation instead of the ADX-gated hybrid.
@@ -493,25 +540,39 @@ file captures the adapted plan actually decided on.
   Telegram.
 
 ## Decisions still open
-- **Whether the current strategy approach has a real, robust edge — first
-  genuinely promising sign as of 2026-09-18, still not fully resolved.**
-  Mean-reversion-only (regime switch to trend-following disabled) with a
-  50-period MA, selective entries, and a wide 4x-ATR stop cleared a proper
-  out-of-sample test for the first time (+0.66% out-of-sample return, PF
-  1.18, Monte Carlo P(loss) 34.3%) — see "Current status" above. Caveat:
-  the profit is concentrated in IWM, not spread evenly across all three
-  instruments, and the out-of-sample sample is only 36 trades. Don't set
-  this as `config.py` defaults or begin paper trading on it without
-  resolving the IWM-concentration question first (e.g. does it hold on
-  IWM alone with more history, or separately on SPY/QQQ).
+- **Whether the current strategy approach has a real, robust edge —
+  resolved for IWM, unresolved/negative for SPY and QQQ, as of 2026-09-18.**
+  Mean-reversion-only (`STRATEGY_SET = "mean_reversion_only"`) with
+  `MR_MA_PERIOD=50, MR_ENTRY_STD_DEV=2.5, STOP_LOSS_ATR_MULT=4.0` cleared
+  out-of-sample validation on IWM specifically via two independent search
+  paths (shared-universe grid AND an IWM-only grid), both converging on
+  the same parameters with profit factor 2.2-3.9 in/out of sample. Ran the
+  SAME rigor on SPY and QQQ individually with their OWN best-fit
+  parameters -- both failed out-of-sample (SPY: PF up to 2.51 in-sample
+  collapsing to 0.62-0.87 out-of-sample; QQQ: never positive in-sample to
+  begin with). See "Current status" above for full numbers. Plausible
+  explanation: IWM (small-caps) is less efficiently arbitraged than SPY/QQQ
+  (mega-cap index products), so real short-term mean-reversion surviving
+  there specifically, and not in the other two, is economically sensible.
+  Still only ~31 total IWM trades across the 1yr split -- real and
+  consistent, but a modest sample. Don't set as `config.py` defaults or
+  begin paper trading without more history to further confirm IWM.
+- **Fixed watchlist question, now has a real answer**: narrow Phase 1's
+  mean-reversion strategy to IWM alone rather than forcing SPY/QQQ into an
+  approach that isn't validated for them. SPY/QQQ were only tested with
+  mean-reversion post-ADX-audit -- they haven't been tried with a
+  genuinely different strategy type, so "no edge" is specific to this
+  approach, not a final word on those two instruments.
 - The 2026-09-17 finding (ADX-gated hybrid + trend filter) did NOT survive
   out-of-sample testing and should not be revisited as a candidate — see
   "Status history (2026-09-17)" below for what was tried and ruled out.
-- Remaining open options from "Strategy search findings" (2026-09-16):
-  different timeframe (5-min was tried 2026-09-18 and ruled out; daily/4hr
-  untested), different instruments, or accept simple TA may not have edge
-  on SPY/QQQ/IWM. Also open: whether 1yr of real data is enough to reliably
-  validate even a simpler 4-parameter search without overfitting.
+- Remaining open: whether 1yr of real data is enough to reliably validate
+  even a simpler 4-parameter search without overfitting (IWM's result
+  suggests yes when the signal is real and simple; SPY's suggests no when
+  it isn't). If pursuing SPY/QQQ further, a different strategy type
+  (post-ADX-audit, not more mean-reversion tuning) is the more promising
+  angle than more parameter search on an approach already shown not to
+  fit them.
 - Fixed watchlist (SPY/QQQ/IWM only) vs. later screener/scanner approach
   for a wider universe — deferred, not needed for Phase 1.
 
