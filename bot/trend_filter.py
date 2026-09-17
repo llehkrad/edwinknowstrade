@@ -39,7 +39,11 @@ def build_trend_map(daily_df: pd.DataFrame, period: int = None) -> Dict[date, Op
     trend[(daily_df["close"] <= sma) & sma.notna()] = "bearish"
 
     shifted = trend.shift(1)  # today's session uses YESTERDAY's completed trend
-    return {idx.date(): val for idx, val in shifted.items()}
+    # Backtest daily bars are indexed by pandas Timestamp (has .date()).
+    # Live daily bars from ib_insync come back as plain datetime.date
+    # already (no time component -- daily bars have none), which has no
+    # .date() method -- use the index value as-is in that case.
+    return {(idx.date() if hasattr(idx, "date") else idx): val for idx, val in shifted.items()}
 
 
 def entry_allowed(signal: Signal, trend: Optional[str]) -> bool:
