@@ -1,6 +1,48 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (as of 2026-09-18, end of day) — paused before first live paper trade
+## Current status (2026-09-18, late night) — live paper trading started; two live-only bugs found and fixed
+**First live run of `bot/main.py` against the paper account (DUT119165), supervised.**
+Both bugs below share the same root cause: `backtest/data.py` returns bars
+indexed by a `DatetimeIndex` (no separate `date` column), but live bars from
+`ib_insync`'s `util.df(bars)` come back with a plain `RangeIndex` and the
+timestamp in a `'date'` column instead. Code written and tested only against
+backtest-shaped DataFrames silently assumed the former. Neither bug was
+caught by backtesting (which never exercises this shape) or by static review
+-- both only surfaced once real live bars started flowing.
+
+1. **`bot/trend_filter.py` `build_trend_map()`** -- crashed on startup with
+   `AttributeError: 'datetime.date' object has no attribute 'date'` (live
+   daily bars from `on_daily_bar_update` are plain `datetime.date`, not
+   pandas `Timestamp`). Fixed, restarted, ran cleanly.
+2. **`bot/strategies/vwap_reversion.py` `_session_vwap()`** -- `day =
+   df.index.date` raised `AttributeError: 'RangeIndex' object has no
+   attribute 'date'` on every single 15-min bar update, for all three
+   symbols, from the moment bug #1's fix let the bot run. Caught internally
+   by `eventkit` per-callback (logged as ERROR, process stayed alive), which
+   made this a *silent* failure, not a crash -- the bot looked "up" in the
+   logs but zero VWAP signal checks succeeded for ~10 minutes, meaning no
+   trade could possibly have fired the entire time. Fixed by reading the
+   `'date'` column when present, falling back to the index otherwise (same
+   pattern as bug #1's fix); verified against real backtest data
+   (`SPY` produced a normal signal, backtest path's `DatetimeIndex`/no-`date`-
+   column shape untouched). Restarted; ran cleanly with no errors afterward.
+
+**Lesson for anything still live-only-untested**: any strategy/filter code
+that touches `df.index` or assumes a `'date'` column should be treated as
+unverified against live data shape until actually observed running live --
+backtest passing is not sufficient evidence. Worth a quick audit of
+`mean_reversion.py`, `trend_following.py`, and `donchian_breakout.py` for
+the same assumption before ever switching an instrument's `STRATEGY_SET`
+to one of them live, even though they're inactive under the current
+all-`vwap_reversion_only` `INSTRUMENT_CONFIG`.
+
+**Monitoring**: a live log watch (grepping for `Opened`/`Closed`/errors/
+circuit-breaker in the bot's stdout) is running in the operator's Claude
+Code session and pushes a notification the moment a trade fills or
+anything breaks -- not a substitute for periodically checking TWS directly
+during this first supervised run.
+
+## Status history (2026-09-18, earlier) — paused before first live paper trade
 **Decision: pause today's research, move toward actually paper trading
 the validated findings.** Also verify QQQ live, specifically to confirm
 (not to fix) that it doesn't work, per the operator's explicit request.

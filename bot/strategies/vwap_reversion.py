@@ -20,7 +20,11 @@ from bot.signal import Signal
 
 
 def _session_vwap(df: pd.DataFrame) -> pd.Series:
-    day = df.index.date
+    # Live bars from ib_insync (util.df) carry a 'date' column with a plain
+    # RangeIndex; backtest bars (backtest/data.py) are indexed by timestamp
+    # instead, with no separate 'date' column -- use whichever is present.
+    dates = df["date"] if "date" in df.columns else df.index
+    day = pd.DatetimeIndex(dates).date
     typical_price = (df["high"] + df["low"] + df["close"]) / 3
     cum_pv = (typical_price * df["volume"]).groupby(day).cumsum()
     cum_vol = df["volume"].groupby(day).cumsum()
