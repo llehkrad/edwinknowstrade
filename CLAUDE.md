@@ -1,6 +1,44 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (as of 2026-09-18, latest) — pairs trading and momentum rotation both ruled out for QQQ
+## Current status (as of 2026-09-18, end of day) — paused before first live paper trade
+**Decision: pause today's research, move toward actually paper trading
+the validated findings.** Also verify QQQ live, specifically to confirm
+(not to fix) that it doesn't work, per the operator's explicit request.
+
+**Built: per-instrument strategy configuration** (`config.INSTRUMENT_CONFIG`,
+`bot/instrument_config.py`) -- `bot/main.py` previously applied one
+`STRATEGY_SET` globally to every instrument; today's findings need
+different strategies per symbol. Configured:
+- **SPY**: `vwap_reversion_only`, entry=2.5, exit=0.2, stop=4.0x ATR --
+  validated out-of-sample.
+- **IWM**: `vwap_reversion_only`, entry=2.5, exit=0.35, stop=4.0x ATR --
+  validated out-of-sample two independent ways.
+- **QQQ**: `vwap_reversion_only` with its OWN best-fit in-sample
+  parameters (entry=2.5, exit=0.5, stop=2.0x ATR), already known to fail
+  out-of-sample in backtest. Kept active on purpose, to watch it fail live
+  as a real-time confirmation, not to try to fix it.
+
+Applied via the same config-monkeypatching pattern `backtest/optimize.py`
+already used for grid search, wired into both `bot/main.py` (live) and
+`backtest/engine.py` (new `use_instrument_config=False`-by-default param
+so existing grid-search/manual-backtest behavior is untouched). Verified:
+default backtest path reproduces the prior 1yr baseline bit-for-bit (no
+regression), and a combined 3-instrument backtest with per-instrument
+config correctly applied `vwap_reversion` to all three, producing results
+directionally consistent with each instrument's isolated test -- and the
+COMBINED portfolio outperformed any single instrument alone (+1.56%
+return, 0.71% max drawdown, profit factor 1.70) via diversification.
+
+**Not yet done**: actually running `bot/main.py` live against the paper
+account. This is a genuinely different category of action than anything
+done today (real order placement, even if paper) -- first run should be
+supervised (operator watching TWS/logs), not started and left unattended,
+since this exact code has never placed a live order before. Also currently
+would run on the operator's own machine, not the Lightsail box (not set up
+yet) -- fine for an initial pipeline test, not yet the final production
+setup. This is the next step when resuming.
+
+## Status history (2026-09-18, earlier) — pairs trading and momentum rotation both ruled out for QQQ
 **Follow-up: tested two genuinely different strategy types for QQQ**
 specifically, since two reversion mechanisms had already failed on it.
 Both built as standalone research scripts (not wired into the
