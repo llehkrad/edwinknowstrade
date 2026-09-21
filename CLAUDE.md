@@ -1,6 +1,58 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (2026-09-18, late night) — TWS's nightly restart disconnected the bot; no auto-reconnect exists yet
+## Current status (2026-09-22, early morning) — second night live; brief TWS blip this time self-healed, but exposed a real reconnect-resync crash
+**Restarted the bot after the 2026-09-18 TWS outage** (operator relogged into
+TWS, confirmed via `check_ibkr_connection.py`) and let it run through the
+full second live session, supervised via a `Monitor` log watch + push
+notifications. Result: SPY/QQQ repeatedly signaled short entries (VWAP
+deviation crossed threshold) that the long-term trend filter correctly
+blocked all session (`trend=bullish`) -- exactly the intended behavior, not
+a bug. IWM stayed quiet all night. No trades filled. A few data-farm
+warnings (`hfarm`, `apachmds`, `secdefhk`) auto-recovered within seconds
+each time, as expected.
+
+**At 05:10 (near/after US market close), `ERROR 1100: Connectivity between
+IBKR and Trader Workstation has been lost` fired** -- initially assumed to
+be a repeat of the 2026-09-18 full nightly-restart outage and the operator
+was paged. **This time it was NOT a full outage**: ~45 seconds later,
+`ERROR 1102: Connectivity...has been restored - data maintained` came
+through on its own, no manual TWS relogin needed. So IBKR/TWS connectivity
+blips can apparently be brief and self-healing, not always the full
+"TWS forced a restart" scenario from 2026-09-18 -- don't assume every 1100
+needs operator intervention; wait to see if 1101/1102 follows before
+paging, though the existing page-then-correct approach (page immediately,
+follow up if it self-resolves) is an acceptable tradeoff given the
+alternative is silently missing a real outage.
+
+**But the reconnect resync itself crashed both bar-update handlers on every
+symbol**, newly discovered via this real blip (never seen before because
+the first outage never recovered on its own to test this path): on
+reconnect, `ib_insync` re-fires each `BarDataList.updateEvent` with only
+one positional argument (`bars`, an empty list) while resubscribing --
+`bot/main.py`'s `on_bar_update`/`on_daily_bar_update` handlers required
+`has_new_bar` as a second positional argument with no default, so every
+resync emit crashed with `TypeError: handler() missing 1 required
+positional argument: 'has_new_bar'`. Caught per-callback by `eventkit`
+(logged as ERROR, process stayed alive) -- same silent-failure shape as
+the 2026-09-18 live-only bugs, just triggered by a different live-only
+code path (reconnect resync, not routine bar updates) that only a real
+disconnect/reconnect cycle exercises. **Fixed** by defaulting
+`has_new_bar: bool = False` in both handlers (`bot/main.py`), so a
+resync-triggered single-arg emit is treated like any other ignored
+intrabar tick instead of crashing. Restarted the bot with the fix live;
+clean startup, all three instruments resubscribed. Not fully verified
+against a second real reconnect yet (would need another live blip to
+observe) -- next reconnect event is the real test.
+
+**Lesson reinforced**: this is the *third* live-only bug found purely by
+running the bot and watching real IBKR event traffic (after the two
+2026-09-18 `df.index`-shape bugs) -- specifically the reconnect/resync path
+is its own untested code path, distinct from routine live bar updates,
+and apparently also undertested by anything short of a real disconnect.
+Worth treating "connection recovery" as its own thing to watch for during
+supervised runs, not just "did it crash on startup."
+
+## Status history (2026-09-18, late night) — TWS's nightly restart disconnected the bot; no auto-reconnect exists yet
 **~28 minutes into the first live run** (after both bugs below were fixed),
 the bot's log showed `ERROR Peer closed connection.` and went silent --
 TWS itself had closed the socket, not just the API. A reconnect attempt

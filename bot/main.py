@@ -158,7 +158,11 @@ def flatten_all(contracts: dict) -> None:
 
 
 def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
-    def handler(bars, has_new_bar: bool):
+    def handler(bars, has_new_bar: bool = False):
+        # On reconnect, ib_insync re-fires updateEvent with just `bars` (no
+        # has_new_bar) while resyncing subscriptions -- default to False so
+        # that resync blip is ignored like any other intrabar tick, instead
+        # of crashing with a missing-argument TypeError.
         global halted
         if not has_new_bar:
             return  # ignore intrabar ticks; only act on completed bars
@@ -231,7 +235,7 @@ def pd_isna(value) -> bool:
 
 
 def on_daily_bar_update(symbol: str):
-    def handler(bars, has_new_bar: bool):
+    def handler(bars, has_new_bar: bool = False):
         if not has_new_bar:
             return
         df = util.df(bars)
