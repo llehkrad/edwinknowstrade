@@ -91,9 +91,11 @@ disconnect/reconnect cycle exercises. **Fixed** by defaulting
 `has_new_bar: bool = False` in both handlers (`bot/main.py`), so a
 resync-triggered single-arg emit is treated like any other ignored
 intrabar tick instead of crashing. Restarted the bot with the fix live;
-clean startup, all three instruments resubscribed. Not fully verified
-against a second real reconnect yet (would need another live blip to
-observe) -- next reconnect event is the real test.
+clean startup, all three instruments resubscribed. This specific fix was
+not re-exercised by a matching 1100->1102 resync blip afterward (see next
+paragraph for what happened instead) -- still worth treating as
+unconfirmed-live until a real resubscribe-while-connected event is
+observed again.
 
 **Lesson reinforced**: this is the *third* live-only bug found purely by
 running the bot and watching real IBKR event traffic (after the two
@@ -102,6 +104,24 @@ is its own untested code path, distinct from routine live bar updates,
 and apparently also undertested by anything short of a real disconnect.
 Worth treating "connection recovery" as its own thing to watch for during
 supervised runs, not just "did it crash on startup."
+
+**Second, different disconnect at 11:00 (still 2026-09-22, late morning,
+after market close)**: `ERROR Peer closed connection.` fired again -- same
+message as the 2026-09-18 full outage, but this time `check_ibkr_connection.py`
+(a separate diagnostic connection, same clientId) connected successfully
+immediately afterward with live quotes for all three symbols, proving TWS
+itself was healthy and reachable -- only the bot's own socket had dropped,
+not a TWS restart. **No manual relogin was needed.** Stopped and restarted
+the bot process (same command, same clientId); clean startup, no changes
+needed to the code. Take-away for future incidents: `ERROR Peer closed
+connection.` is NOT on its own proof of a full TWS outage the way the
+2026-09-18 incident assumed -- always try a plain reconnect/restart first
+and only escalate to "operator must relogin to TWS" if that reconnect
+itself fails (e.g. `ConnectionRefusedError`, as it did on 2026-09-18).
+This second restart is also the last thing Claude Code did before handing
+bot execution and monitoring off to Hermes Agent entirely -- see the
+"Current status" section at the top of this file for that handoff, which
+supersedes Claude Code directly running/restarting the bot going forward.
 
 ## Status history (2026-09-18, late night) — TWS's nightly restart disconnected the bot; no auto-reconnect exists yet
 **~28 minutes into the first live run** (after both bugs below were fixed),
