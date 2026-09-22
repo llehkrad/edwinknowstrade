@@ -1,6 +1,57 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (2026-09-22, early morning) — second night live; brief TWS blip this time self-healed, but exposed a real reconnect-resync crash
+## Current status (2026-09-22, late morning) — execution + monitoring handed off to Hermes Agent, decoupled from Claude Code
+**The bot is no longer run/watched from inside a Claude Code session.** Up
+through the second live night, `python -m bot.main` ran as a Claude Code
+background task, watched by a Claude Code `Monitor` log-tail with desktop +
+attempted mobile push notifications -- mobile push to the operator's phone
+never worked (config confirmed correct, notifications never arrived; root
+cause never found). The operator separately has **Hermes Agent** (Nous
+Research's agent runtime, `hermes` CLI, already running as a persistent
+gateway daemon on this machine with a working Telegram pairing) set up
+independently of this project.
+
+**Moved ownership of the execution + reporting layers to Hermes** (see
+"Architecture" below -- this is that layer split, just Hermes instead of
+Cowork/Slack): Claude Code stopped its own background bot process and
+instructed Hermes (one `hermes chat -q ... --oneshot` call) to (1) start
+`python -m bot.main` as its own detached OS process, independent of any
+chat/session lifetime, (2) verify clean startup, (3) create a Hermes cron
+job (`trading-bot-log-monitor`, 1-minute interval) running a small
+change-detector script that tails the bot's log by byte offset and alerts
+via Telegram only when something actually matches -- trade opens/closes,
+circuit breaker, ERROR/Traceback/Exception, process death (PID liveness
+check), or an ERROR 1100 (IBKR connection lost) with no 1102 (restored)
+within 2 minutes (explicitly tells the operator to manually relogin to TWS
+in that case, matching the lesson from the 2026-09-18/2026-09-22 outages
+above). Independently verified after Hermes reported completion: process
+is the real bot (correct interpreter -- Hermes's own default `python`
+resolves to its own venv without `ib_insync`, had to point at
+`C:\Users\Edwin\AppData\Local\Python\pythoncore-3.14-64\python.exe`
+instead), log shows clean IBKR connect + all 3 instrument subscriptions,
+cron job active and already fired once successfully.
+
+**Why this is better for the unsupervised-overnight goal**: Hermes's
+process is a genuine standalone OS process and its gateway is already a
+persistent daemon independent of any interactive coding session -- closer
+to the project's original "execution layer runs 24/7, decoupled from the
+build/maintenance layer" design intent than a Claude Code background task
+ever was (a Claude Code session's background tasks are not guaranteed to
+survive the session ending). Telegram delivery is also a working, already-
+verified notification channel, unlike Claude Code's mobile push.
+
+**Still true / unaffected by this handoff**: the reconnect-crash fix
+earlier today, the trend-filter/vwap_reversion live-data-shape fixes from
+2026-09-18, and the no-reconnect-logic gap in `bot/main.py` itself (Hermes
+restarting the process from the outside is a workaround for that gap, not
+a fix to it -- still worth the reconnect-with-backoff or IBC work described
+below before any non-Windows/Lightsail unattended deployment). If resuming
+work on the bot's own code, check `logs/current_log_path.txt` and
+`logs/bot_pid.txt` (maintained by Hermes, not by `bot/main.py` itself) to
+find the live process/log rather than assuming a Claude Code background
+task owns it.
+
+## Status history (2026-09-22, early morning) — second night live; brief TWS blip this time self-healed, but exposed a real reconnect-resync crash
 **Restarted the bot after the 2026-09-18 TWS outage** (operator relogged into
 TWS, confirmed via `check_ibkr_connection.py`) and let it run through the
 full second live session, supervised via a `Monitor` log watch + push
