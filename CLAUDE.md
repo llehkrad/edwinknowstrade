@@ -1,5 +1,84 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-24) — TSLA/GOOGL/MSFT/AAPL/NVDA explored: no edge with existing mean-reversion/VWAP strategies; momentum testing planned next
+**Operator asked to add TSLA, GOOGL, MSFT, AAPL, NVDA to the bot's universe.**
+Before any live/paper trading, ran the same out-of-sample discipline used
+for SPY/QQQ/IWM: pulled 1yr real 15-min + daily bars for all 5 via
+`backtest.fetch_ibkr_data` (saved to `data/historical/`), then wrote
+`backtest/validate_new_symbols.py` — per-symbol grid search on the first
+half of the year (in-sample), re-tested top-3 combos per strategy set on
+the second half (out-of-sample, never searched over) — same split
+methodology as the SPY/QQQ/IWM validation.
+
+**TSLA and GOOGL both completed** (full grid search on `sma_zscore` and
+`vwap_donchian`, both strategy sets, out-of-sample re-tested):
+- **`sma_zscore` (mean-reversion + trend-following mix): failed out-of-sample
+  on both, badly.** GOOGL's in-sample profit factor reached as high as 2.93,
+  collapsing to 0.42-0.47 out-of-sample (clear losses) — a textbook
+  overfitting signature, same shape as the SPY/QQQ failures already
+  documented below. TSLA similarly went from PF ~1.1-1.2 in-sample to
+  0.19-0.62 out-of-sample.
+- **`vwap_donchian` (VWAP-reversion + Donchian breakout): technically
+  cleared the out-of-sample bar (return > 0%) on both, but the margin is
+  negligible** — returns of 0.00% to 0.02%, profit factors barely above 1.0
+  (1.01-1.18). Compare to IWM's real out-of-sample result (+1.42% return,
+  PF 3.10) — this is noise-level performance, not a validated edge.
+  **Verdict: neither TSLA nor GOOGL has a real edge with the bot's current
+  mean-reversion/VWAP-reversion strategies.**
+
+**MSFT/AAPL/NVDA validation was started (historical data pulled, daily bars
+pulled) but killed partway through MSFT's grid search** at the operator's
+call — TSLA/GOOGL's clean, consistent "no edge" result made it a reasonable
+bet that MSFT/AAPL/NVDA (all similarly large, liquid, heavily-arbitraged
+mega-cap names) would show the same pattern, and continuing would have cost
+several more hours of grid search for low expected new information. Their
+1yr 15-min + daily historical CSVs are already saved in `data/historical/`
+if this needs revisiting — no need to re-fetch.
+
+**Why this result makes sense**: this matches the project's own established
+pattern — SPY/QQQ (also large, efficiently-arbitraged, heavily-traded)
+showed no edge either, while IWM (small-cap, less efficiently arbitraged)
+is the one validated success. TSLA/GOOGL/MSFT/AAPL/NVDA are all mega-cap,
+extremely liquid, heavily-traded names — the same market-efficiency
+argument that explains SPY/QQQ's failure plausibly extends to them too.
+
+**Next: momentum strategy testing on TSLA and GOOGL first.** Operator's
+reasoning: single-stock names are more news/catalyst-driven (earnings,
+product announcements, etc.) than SPY/QQQ/IWM, so they may show real
+momentum/trend behavior even though mean-reversion and VWAP-reversion don't
+work on them. Plan:
+1. Isolate `bot/strategies/trend_following.py` (SMA fast/slow crossover) —
+   already exists in the codebase, only ever tested mixed with
+   `mean_reversion` inside `sma_zscore` (which failed on TSLA/GOOGL above)
+   — never tested alone. Add a `trend_following_only` entry to
+   `bot/strategy_registry.py` (same pattern as the existing
+   `mean_reversion_only`/`vwap_reversion_only` entries), out-of-sample
+   validate on TSLA and GOOGL first.
+2. **Must benchmark against simple buy-and-hold on the same out-of-sample
+   window** — the project already has one false-positive lesson on exactly
+   this mistake: the 2026-09-18 cross-sectional momentum rotation test on
+   SPY/QQQ/IWM looked like a huge out-of-sample win (+9% to +14.5%) until
+   checked against buy-and-hold (13.6%-17.9% on the same window), which
+   revealed the "edge" was pure market beta from a rally, not real signal.
+   Any momentum result on TSLA/GOOGL must clear this same bar before being
+   trusted.
+3. **If TSLA/GOOGL results are promising or neutral (not a clear failure),
+   proceed to test the same momentum approach on MSFT, AAPL, NVDA.** If
+   TSLA/GOOGL both fail outright, likely not worth continuing to the other
+   three on this same strategy type — matches the same "consistent failure
+   across similarly-structured instruments" reasoning used to stop the
+   mean-reversion/VWAP validation above.
+4. The existing `trend_following` is intraday (15-min bar SMA crossover) —
+   if this also fails, a genuinely different, longer-timeframe momentum
+   approach (e.g. daily-bar, weeks-long holding, academic 12-1 month
+   momentum factor style) would be a bigger, separate build, not a quick
+   backtest tweak — not yet started, only noted as a fallback option.
+
+**Status: paused for a machine restart (RDP setup work), to resume after.**
+No trend_following_only work has been committed yet — reverted an
+in-progress `bot/strategy_registry.py` edit to keep the working tree clean
+before the restart; redo this step when resuming.
+
 ## Current status (2026-09-23, night) — two live bugs fixed: event-loop crash on entry fill, and IBKR rejecting fractional-share orders
 **Found from the live log** (`logs/bot_20260923_210445.log`, ~22:15:05) on a
 QQQ entry attempt, running under the Hermes market-hours supervisor from
