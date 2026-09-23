@@ -1,5 +1,104 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-23, night) — two live bugs fixed: event-loop crash on entry fill, and IBKR rejecting fractional-share orders
+**Found from the live log** (`logs/bot_20260923_210445.log`, ~22:15:05) on a
+QQQ entry attempt, running under the Hermes market-hours supervisor from
+the entry below. Both bugs are fixed; not yet re-observed live (the next
+QQQ entry attempt during market hours will be the real test).
+
+**BUG 1 (crash): `RuntimeError: This event loop is already running` on
+every entry/exit fill wait.** `bot/main.py`'s old `_wait_for_fill()` polled
+`trade.isDone()` in a loop calling `ib.sleep(0.2)` -- but `place_entry()`/
+`place_exit()` are called synchronously from inside `on_bar_update()`'s
+`handler()`, which is itself an `ib_insync` event callback already running
+on the asyncio event loop. `ib.sleep()` goes through `ib_insync.util.run()`,
+which calls `loop.run_until_complete()` -- illegal from inside a callback
+the loop is already inside, so it crashed immediately on the QQQ entry
+attempt. **Fixed** by replacing the blocking poll with a non-blocking
+`_watch_trade()` helper: it listens on `trade.statusEvent` (fires on every
+status change, including fills and cancels) and races it against a
+`loop.call_later()` timeout, invoking a callback exactly once with
+`(avg_fill_price, commission)` whichever happens first -- same 15s timeout
+and same "did not report a fill" error log as before, just event-driven
+instead of blocking. `place_entry()`/`place_exit()` were restructured
+accordingly: the post-fill logic (attach stop order, update cash/portfolio,
+log trade) now lives in an `on_fill` closure passed to `_watch_trade()`
+rather than running inline after a blocking wait.
+
+**BUG 2 (order rejected): `Error 10243: Fractional-sized order cannot be
+placed via API`.** IBKR's API flatly rejects fractional-quantity orders --
+only the desktop TWS GUI can place them -- which `bot/risk_manager.py`'s
+`position_size()` never accounted for: with `config.USE_FRACTIONAL_SHARES
+= True` it always returned `round(raw_qty, 4)`, a fractional quantity, for
+every live order. **Fixed per the operator's explicit instruction**: added
+a `force_whole_shares: bool = False` parameter to `position_size()`. When
+`True`, it always rounds down to a whole share, minimum 1 whenever the
+risk/capital-based sizing calc is positive, regardless of
+`config.USE_FRACTIONAL_SHARES`. `bot/main.py`'s live call site now passes
+`force_whole_shares=True`. **`backtest/engine.py`'s call site was
+deliberately left unchanged** (no new argument, defaults to `False`) --
+per this file's own "backtest reuses live `bot/` modules directly so
+backtest and live logic can't diverge" design, silently forcing whole
+shares into the backtest as well would have changed every historical
+result and broken comparability with all the grid-search/Monte Carlo
+findings already recorded in this file. Confirmed `python -m
+backtest.run_backtest` still runs against the same call path/defaults as
+before (198 round trips, -6.72% return on the current unvalidated
+defaults -- consistent with this being an unrelated sizing-path change,
+not a strategy change). `config.USE_FRACTIONAL_SHARES` itself is left in
+place for backtest-only fractional simulation, per the risk_manager.py
+docstring now explaining why it's no longer achievable live.
+
+## Current status (2026-09-22, midday) — market-hours supervisor added; bot now only runs around the US session, not 24/7
+**New cron job: `trading-bot-market-hours-supervisor`** (Hermes cron, job ID
+`3b7482a48215`, script `bot_monitor_state/market_hours_supervisor.py`, runs
+every 5 minutes, `no_agent` mode -- pure script, no LLM call, silent unless
+it errors). Added at the operator's request to stop the bot running 24/7
+and instead only run it around the actual US market session.
+
+**What it does, each tick:** computes whether "now" falls inside NYSE
+regular session hours (9:30am-4:00pm America/New_York) +/- a 30-minute
+buffer on each side, using `zoneinfo` (so DST transitions in Mar/Nov are
+handled automatically, no manual SGT-offset math) plus a hardcoded
+`NYSE_HOLIDAYS` set in the script (full-day closures only -- half-days/
+early closes are NOT modeled, see script docstring). Then:
+- **In window + bot not running** -> starts it (`python -m bot.main`, same
+  command/interpreter/cwd as always: `C:\Users\Edwin\AppData\Local\Python\
+  pythoncore-3.14-64\python.exe`, cwd = this folder), writes a fresh
+  `logs/bot_<timestamp>.log` and updates `logs/bot_pid.txt` /
+  `logs/current_log_path.txt` the same way the existing handoff setup did.
+- **Out of window + bot running** -> stops it cleanly via `taskkill /F`.
+- **Otherwise** -> no-op, prints `no_change` (empty/no-op output on
+  `no_agent` jobs sends nothing, so this job stays silent in normal
+  operation).
+
+**Deliberately stdlib-only** (`zoneinfo` + hardcoded holiday list), NOT
+`pandas_market_calendars` -- first version used that library and worked
+fine when tested manually, but failed every real cron tick with
+`ModuleNotFoundError` because Hermes's cron scheduler runs scripts under
+Hermes's own venv (Python 3.11), not the bot's Python 3.14 interpreter the
+package had been installed into. Lesson: a script handed to Hermes cron
+must not assume it runs under the same interpreter as manual testing --
+verify by actually firing the job (`cronjob run`), not just running the
+script by hand.
+
+**Verified working**: manually fired the job after the interpreter fix;
+it correctly identified the bot's existing 24/7 process (PID 38412, been
+running since the pre-supervisor setup) as **outside** the trading window
+at the time (11:2x SGT, well after the prior night's session end +30min
+buffer) and stopped it. A second manual fire afterward correctly reported
+`no_change (outside window, bot not running)`. Coexists with the existing
+`trading-bot-log-monitor` job (still tails the log and alerts via
+Telegram) without conflict -- that job continues to watch whatever log
+file `logs/current_log_path.txt` currently points to, including one this
+supervisor creates.
+
+**Not yet exercised**: an actual automatic start at the next session's
+open-minus-30min, or an automatic stop at close-plus-30min -- both were
+inferred correct from the window-boundary logic and a manual stop, not yet
+observed live at a real boundary. Worth a spot-check the first time either
+boundary passes.
+
 ## Current status (2026-09-22, late morning) — execution + monitoring handed off to Hermes Agent, decoupled from Claude Code
 **The bot is no longer run/watched from inside a Claude Code session.** Up
 through the second live night, `python -m bot.main` ran as a Claude Code

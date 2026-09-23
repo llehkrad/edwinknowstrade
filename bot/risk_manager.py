@@ -12,12 +12,24 @@ import config
 from bot.portfolio import Portfolio
 
 
-def position_size(equity: float, atr_value: float, price: float) -> float:
+def position_size(equity: float, atr_value: float, price: float, force_whole_shares: bool = False) -> float:
     """
     Returns a signed-agnostic quantity (always positive) of shares to trade,
     such that a 1-ATR adverse move costs config.RISK_PER_TRADE_PCT of equity --
     capped by config.MAX_POSITION_PCT_OF_EQUITY so sizing never implies more
     notional than the account can actually afford (see config.py comment).
+
+    config.USE_FRACTIONAL_SHARES is no longer achievable for LIVE orders --
+    IBKR's API rejects fractional-quantity orders outright (Error 10243,
+    "Fractional-sized order cannot be placed via API", hit live 2026-09-23
+    on a QQQ entry, see CLAUDE.md), even though the desktop TWS GUI accepts
+    them. bot/main.py (the only live call site) passes force_whole_shares=True
+    to always round to a whole share, minimum 1 when the underlying sizing
+    calc is positive, regardless of config.USE_FRACTIONAL_SHARES. backtest/
+    engine.py does NOT pass it, so historical backtests keep simulating
+    fractional sizing exactly as before -- this flag exists specifically so
+    the live-vs-backtest fidelity CLAUDE.md calls for isn't silently broken
+    by a live-only API limitation.
     """
     if atr_value <= 0 or price <= 0:
         return 0.0
@@ -29,6 +41,9 @@ def position_size(equity: float, atr_value: float, price: float) -> float:
     capital_based_qty = max_notional / price
 
     raw_qty = min(risk_based_qty, capital_based_qty)
+
+    if force_whole_shares:
+        return float(max(1, int(raw_qty))) if raw_qty > 0 else 0.0
 
     if config.USE_FRACTIONAL_SHARES:
         return round(raw_qty, 4)

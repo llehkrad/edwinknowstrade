@@ -21,7 +21,6 @@ config.py are placeholders pending backtesting, and the pre-live checklist
 import logging
 import signal
 import sys
-import time
 from typing import Dict
 
 import ib_compat
@@ -70,86 +69,126 @@ def mark_to_market_equity(bar_lists) -> float:
     return cash + unrealized
 
 
-def _wait_for_fill(trade, timeout: float = 15.0):
-    """Blocks (via ib.sleep, which pumps the IB event loop) until the order
-    reports a fill or the timeout elapses. Returns (avg_fill_price, commission)."""
-    start = time.monotonic()
-    while not trade.isDone() and time.monotonic() - start < timeout:
-        ib.sleep(0.2)
+def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
+    """
+    Non-blocking replacement for the old ib.sleep()-polling wait-for-fill loop.
 
-    avg_price = trade.orderStatus.avgFillPrice or 0.0
-    commission = sum(
-        fill.commissionReport.commission
-        for fill in trade.fills
-        if fill.commissionReport is not None
-    )
-    if avg_price <= 0:
-        logger.error(
-            "Order for %s did not report a fill within %.0fs (status=%s)",
-            trade.contract.symbol, timeout, trade.orderStatus.status,
+    place_entry()/place_exit() are called synchronously from inside
+    on_bar_update()'s handler(), which is itself an ib_insync event callback
+    already running on the asyncio event loop. ib.sleep() (and anything else
+    that goes through ib_insync's util.run()) calls loop.run_until_complete()
+    internally, which crashes with 'RuntimeError: This event loop is already
+    running' when invoked from a callback that the loop is already inside --
+    hit live 2026-09-23 on a QQQ entry, see CLAUDE.md. There is no way to
+    block-and-pump from inside a running-loop callback, so this doesn't poll
+    at all: it races trade.statusEvent (fires on every status change,
+    including fills and cancels) against a call_later timeout, and invokes
+    on_result(avg_price, commission) exactly once, whichever happens first --
+    same effective timeout/logging behavior as the old polling loop, just
+    event-driven instead of blocking.
+    """
+    done = False
+
+    def finish(avg_price: float, commission: float) -> None:
+        nonlocal done
+        if done:
+            return
+        done = True
+        trade.statusEvent -= on_status
+        timeout_handle.cancel()
+        if avg_price <= 0:
+            logger.error(
+                "Order for %s did not report a fill within %.0fs (status=%s)",
+                symbol, timeout, trade.orderStatus.status,
+            )
+        on_result(avg_price, commission)
+
+    def commission_total() -> float:
+        return sum(
+            fill.commissionReport.commission
+            for fill in trade.fills
+            if fill.commissionReport is not None
         )
-    return avg_price, commission
+
+    def on_status(t) -> None:
+        if not t.isDone():
+            return
+        finish(t.orderStatus.avgFillPrice or 0.0, commission_total())
+
+    def on_timeout() -> None:
+        finish(trade.orderStatus.avgFillPrice or 0.0, commission_total())
+
+    trade.statusEvent += on_status
+    timeout_handle = util.getLoop().call_later(timeout, on_timeout)
+
+    if trade.isDone():  # already terminal (e.g. filled before we attached the listener)
+        on_status(trade)
 
 
 def place_entry(contract, symbol: str, is_long: bool, qty: float, atr_value: float, strategy_name: str, regime: Regime) -> None:
-    global cash
     action = "BUY" if is_long else "SELL"
     stop_action = "SELL" if is_long else "BUY"
 
+    def on_fill(fill_price: float, commission: float) -> None:
+        global cash
+        if fill_price <= 0:
+            logger.error("Entry for %s did not fill -- no position opened, no order left resting.", symbol)
+            return
+
+        stop_price = risk_manager.stop_price_for(fill_price, atr_value, is_long)
+        stop_order = StopOrder(stop_action, qty, stop_price)
+        stop_order.tif = "GTC"  # good-til-cancelled -- must survive across sessions
+                                 # since holds may carry overnight (swing-only design)
+        ib.placeOrder(contract, stop_order)
+
+        cash += (-qty * fill_price - commission) if is_long else (qty * fill_price - commission)
+        entry_commissions[symbol] = commission
+        portfolio.open_position(
+            Position(symbol=symbol, quantity=qty if is_long else -qty, entry_price=fill_price, stop_price=stop_price, opened_at=util.now())
+        )
+        trade_log.log_trade(
+            symbol=symbol, action=action.lower(), quantity=qty, price=fill_price, commission=commission,
+            stop_price=stop_price, strategy=strategy_name, regime=regime.value,
+            equity_after=portfolio.equity, realized_pnl=None,
+        )
+        logger.info("Opened %s %s qty=%s @ %s stop=%s commission=%.2f (%s/%s)",
+                    action, symbol, qty, fill_price, stop_price, commission, strategy_name, regime.value)
+
     entry_trade = ib.placeOrder(contract, MarketOrder(action, qty))
-    fill_price, commission = _wait_for_fill(entry_trade)
-    if fill_price <= 0:
-        logger.error("Entry for %s did not fill -- no position opened, no order left resting.", symbol)
-        return
-
-    stop_price = risk_manager.stop_price_for(fill_price, atr_value, is_long)
-    stop_order = StopOrder(stop_action, qty, stop_price)
-    stop_order.tif = "GTC"  # good-til-cancelled -- must survive across sessions
-                             # since holds may carry overnight (swing-only design)
-    ib.placeOrder(contract, stop_order)
-
-    cash += (-qty * fill_price - commission) if is_long else (qty * fill_price - commission)
-    entry_commissions[symbol] = commission
-    portfolio.open_position(
-        Position(symbol=symbol, quantity=qty if is_long else -qty, entry_price=fill_price, stop_price=stop_price, opened_at=util.now())
-    )
-    trade_log.log_trade(
-        symbol=symbol, action=action.lower(), quantity=qty, price=fill_price, commission=commission,
-        stop_price=stop_price, strategy=strategy_name, regime=regime.value,
-        equity_after=portfolio.equity, realized_pnl=None,
-    )
-    logger.info("Opened %s %s qty=%s @ %s stop=%s commission=%.2f (%s/%s)",
-                action, symbol, qty, fill_price, stop_price, commission, strategy_name, regime.value)
+    _watch_trade(entry_trade, symbol, on_fill)
 
 
 def place_exit(contract, symbol: str, strategy_name: str, regime: Regime) -> None:
-    global cash
     position = portfolio.get_position(symbol)
     if position is None:
         return
 
     is_long = position.is_long
     action = "SELL" if is_long else "BUY"
-    exit_trade = ib.placeOrder(contract, MarketOrder(action, abs(position.quantity)))
-    fill_price, commission = _wait_for_fill(exit_trade)
-    if fill_price <= 0:
-        logger.error("Exit for %s did not report a fill -- position left open in local state, check IBKR manually.", symbol)
-        return
-
     qty = abs(position.quantity)
-    gross = (fill_price - position.entry_price) * qty if is_long else (position.entry_price - fill_price) * qty
-    entry_commission = entry_commissions.pop(symbol, 0.0)
-    realized_pnl = gross - entry_commission - commission
 
-    cash += (qty * fill_price - commission) if is_long else (-qty * fill_price - commission)
-    portfolio.close_position(symbol)
+    def on_fill(fill_price: float, commission: float) -> None:
+        global cash
+        if fill_price <= 0:
+            logger.error("Exit for %s did not report a fill -- position left open in local state, check IBKR manually.", symbol)
+            return
 
-    trade_log.log_trade(
-        symbol=symbol, action="exit", quantity=qty, price=fill_price, commission=commission,
-        stop_price=position.stop_price, strategy=strategy_name, regime=regime.value,
-        equity_after=portfolio.equity, realized_pnl=realized_pnl,
-    )
-    logger.info("Closed %s @ %s commission=%.2f realized_pnl=%.2f", symbol, fill_price, commission, realized_pnl)
+        gross = (fill_price - position.entry_price) * qty if is_long else (position.entry_price - fill_price) * qty
+        entry_commission = entry_commissions.pop(symbol, 0.0)
+        realized_pnl = gross - entry_commission - commission
+
+        cash += (qty * fill_price - commission) if is_long else (-qty * fill_price - commission)
+        portfolio.close_position(symbol)
+
+        trade_log.log_trade(
+            symbol=symbol, action="exit", quantity=qty, price=fill_price, commission=commission,
+            stop_price=position.stop_price, strategy=strategy_name, regime=regime.value,
+            equity_after=portfolio.equity, realized_pnl=realized_pnl,
+        )
+        logger.info("Closed %s @ %s commission=%.2f realized_pnl=%.2f", symbol, fill_price, commission, realized_pnl)
+
+    exit_trade = ib.placeOrder(contract, MarketOrder(action, qty))
+    _watch_trade(exit_trade, symbol, on_fill)
 
 
 def flatten_all(contracts: dict) -> None:
@@ -215,7 +254,7 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
             return
 
         is_long = signal is Signal.BUY
-        qty = risk_manager.position_size(portfolio.equity, atr_value, latest_price)
+        qty = risk_manager.position_size(portfolio.equity, atr_value, latest_price, force_whole_shares=True)
         if qty <= 0:
             return
 
