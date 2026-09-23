@@ -109,6 +109,18 @@ BB_STD_DEV = 2.0
 BB_SQUEEZE_LOOKBACK = 50       # trailing bars used to judge "is band width unusually narrow"
 BB_SQUEEZE_PERCENTILE = 0.20   # squeeze = band width in the bottom 20% of its own recent history
 
+# --- Bracket order exits (stop-loss + take-profit OCO, added 2026-09-24) ---
+# See CLAUDE.md 2026-09-24 "bracket-tp-sl" entry. When USE_BRACKET_EXITS is
+# True, a filled entry gets a stop-loss AND a take-profit resting order
+# placed together (one-cancels-other), and each strategy's own EXIT signal
+# is ignored entirely -- the position only closes when the stop or the
+# take-profit is hit. Take-profit distance = STOP_LOSS_ATR_MULT * ATR *
+# TAKE_PROFIT_RATIO (i.e. TAKE_PROFIT_RATIO is the risk:reward multiple).
+# Default False/2.0 so this is strictly opt-in -- existing behavior/results
+# for every strategy not being bracket-tested is unaffected.
+USE_BRACKET_EXITS = False
+TAKE_PROFIT_RATIO = 2.0
+
 # --- Long-term trend filter (daily bars) ---
 # Added 2026-09-16 as a mechanically distinct angle after 900+ configs of
 # pure 15-min TA signals showed no edge (see CLAUDE.md "Strategy search

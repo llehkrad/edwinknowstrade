@@ -55,6 +55,17 @@ def stop_price_for(entry_price: float, atr_value: float, is_long: bool) -> float
     return entry_price - distance if is_long else entry_price + distance
 
 
+def take_profit_price_for(entry_price: float, atr_value: float, is_long: bool) -> float:
+    """
+    Take-profit distance = the same ATR stop distance scaled by
+    config.TAKE_PROFIT_RATIO (the risk:reward multiple) -- e.g. a 2.0x
+    stop and TAKE_PROFIT_RATIO=2.0 gives a 4.0x-ATR take-profit, a 2:1
+    reward:risk bracket. Only used when config.USE_BRACKET_EXITS is True.
+    """
+    distance = atr_value * config.STOP_LOSS_ATR_MULT * config.TAKE_PROFIT_RATIO
+    return entry_price + distance if is_long else entry_price - distance
+
+
 def exposure_cap_allows(
     portfolio: Portfolio, is_long: bool, added_notional: float, current_prices: Dict[str, float]
 ) -> bool:
