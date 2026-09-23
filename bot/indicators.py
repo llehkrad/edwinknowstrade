@@ -68,3 +68,14 @@ def adx(df: pd.DataFrame, period: int) -> pd.Series:
 
     dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di)
     return dx.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+
+
+def rsi(series: pd.Series, period: int) -> pd.Series:
+    """Relative Strength Index (Wilder's smoothing), 0-100 scale."""
+    delta = series.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    return 100 - (100 / (1 + rs))

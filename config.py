@@ -82,6 +82,33 @@ VWAP_EXIT_ATR_MULT = 0.3   # exit once back within this many ATRs of VWAP
 DONCHIAN_ENTRY_PERIOD = 20
 DONCHIAN_EXIT_PERIOD = 10
 
+# --- Opening Range Breakout strategy (added 2026-09-24; TODO: tune via backtest) ---
+# ORB_RANGE_BARS: number of bars (at config.BAR_SIZE) that make up the
+# "opening range" -- e.g. 1 bar at 15-min = the first 15 minutes of the
+# session. ORB_STOP_AT_OPPOSITE_RANGE: if True, exit when price closes
+# back through the OPPOSITE side of the opening range (in addition to the
+# bot's normal ATR stop, which always applies regardless). Volume
+# confirmation (ORB_REQUIRE_VOLUME_CONFIRMATION) is an optional filter,
+# off by default -- see bot/strategies/orb.py.
+ORB_RANGE_BARS = 1
+ORB_STOP_AT_OPPOSITE_RANGE = True
+ORB_REQUIRE_VOLUME_CONFIRMATION = False
+ORB_VOLUME_LOOKBACK = 20
+ORB_VOLUME_MULT = 1.5
+
+# --- RSI mean reversion strategy (added 2026-09-24; TODO: tune via backtest) ---
+RSI_PERIOD = 14
+RSI_OVERSOLD = 30
+RSI_OVERBOUGHT = 70
+RSI_EXIT_LOW = 50   # long position exits once RSI recovers to/above this
+RSI_EXIT_HIGH = 50  # short position exits once RSI falls to/below this
+
+# --- Bollinger Band squeeze breakout strategy (added 2026-09-24; TODO: tune via backtest) ---
+BB_PERIOD = 20
+BB_STD_DEV = 2.0
+BB_SQUEEZE_LOOKBACK = 50       # trailing bars used to judge "is band width unusually narrow"
+BB_SQUEEZE_PERCENTILE = 0.20   # squeeze = band width in the bottom 20% of its own recent history
+
 # --- Long-term trend filter (daily bars) ---
 # Added 2026-09-16 as a mechanically distinct angle after 900+ configs of
 # pure 15-min TA signals showed no edge (see CLAUDE.md "Strategy search
