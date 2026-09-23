@@ -62,7 +62,7 @@ def _min_lookback() -> int:
 
 def run_backtest(
     data: Dict[str, pd.DataFrame], starting_equity: float = None, daily_data: Dict[str, pd.DataFrame] = None,
-    use_instrument_config: bool = False,
+    use_instrument_config: bool = False, use_bracket_exits: bool = False,
 ) -> BacktestResult:
     """
     data: {symbol: DataFrame} indexed by timestamp with open/high/low/close/volume
@@ -76,6 +76,15 @@ def run_backtest(
     parameter selection bot/main.py uses live. Default False so grid search
     (backtest/optimize.py) and manual single-shared-config backtests keep
     sweeping one parameter set across all instruments uniformly, unaffected.
+    use_bracket_exits: if True, mirrors config.USE_BRACKET_EXITS live: a
+    filled entry gets a stop-loss AND a take-profit level (ATR-based, see
+    risk_manager.stop_price_for/take_profit_price_for), and the strategy's
+    own EXIT signal is ignored entirely -- the position only closes when the
+    bar's high/low crosses one of those two levels. Default False so every
+    existing (non-bracket) backtest path/result already recorded in
+    CLAUDE.md is completely unaffected -- this is strictly opt-in. See
+    CLAUDE.md's 2026-09-24 bracket-tp-sl entry for why intrabar high/low
+    (not just close) matters here, and the same-bar tie-break convention.
     """
     starting_equity = starting_equity if starting_equity is not None else config.ACCOUNT_EQUITY_USD
     portfolio = Portfolio(equity=starting_equity, peak_equity=starting_equity)
@@ -86,6 +95,7 @@ def run_backtest(
 
     last_price: Dict[str, float] = {}
     entry_commissions: Dict[str, float] = {}
+    take_profit_prices: Dict[str, float] = {}  # symbol -> level, only populated when use_bracket_exits
     fills: List[Fill] = []
     equity_curve_rows = []
     halted = False
@@ -111,13 +121,52 @@ def run_backtest(
             last_price[symbol] = bar["close"]
             position = portfolio.get_position(symbol)
 
-            # 1. Protective stop check takes priority over any signal.
+            # 1. Protective stop (and, under use_bracket_exits, take-profit)
+            # check takes priority over any signal. Checked against the
+            # bar's high/low, not just its close -- a resting IBKR stop or
+            # limit order can fill anywhere the price traded intrabar, not
+            # only at the bar's final print. Using close-only here would
+            # systematically miss/mis-time intrabar exits vs. how a real
+            # resting order behaves.
             if position is not None:
                 stop_hit = (
                     (position.is_long and bar["low"] <= position.stop_price)
                     or (not position.is_long and bar["high"] >= position.stop_price)
                 )
-                if stop_hit:
+
+                if use_bracket_exits:
+                    tp_price = take_profit_prices.get(symbol)
+                    tp_hit = tp_price is not None and (
+                        (position.is_long and bar["high"] >= tp_price)
+                        or (not position.is_long and bar["low"] <= tp_price)
+                    )
+
+                    if stop_hit:
+                        # Tie-break convention: if a single bar's high-low
+                        # range is wide enough that BOTH the stop and the
+                        # take-profit fall inside it, we can't tell from
+                        # OHLC data alone which a real resting order would
+                        # have hit first intrabar. We deliberately assume
+                        # the WORSE outcome (stop-loss triggers first) --
+                        # conservative, and avoids the backtest silently
+                        # flattering itself by always picking the better of
+                        # the two whenever both were technically reachable.
+                        cash = _close_position(
+                            portfolio, entry_commissions, cash, symbol, position,
+                            position.stop_price, ts, "stop_loss", "n/a", fills,
+                        )
+                        take_profit_prices.pop(symbol, None)
+                        portfolio.update_equity(_mark_to_market(cash, portfolio, last_price))
+                        position = None
+                    elif tp_hit:
+                        cash = _close_position(
+                            portfolio, entry_commissions, cash, symbol, position,
+                            tp_price, ts, "take_profit", "n/a", fills,
+                        )
+                        take_profit_prices.pop(symbol, None)
+                        portfolio.update_equity(_mark_to_market(cash, portfolio, last_price))
+                        position = None
+                elif stop_hit:
                     cash = _close_position(
                         portfolio, entry_commissions, cash, symbol, position,
                         position.stop_price, ts, "stop_loss", "n/a", fills,
@@ -137,7 +186,7 @@ def run_backtest(
                 position_is_long=position.is_long if position else None,
             )
 
-            if sig is Signal.EXIT and position is not None:
+            if sig is Signal.EXIT and position is not None and not use_bracket_exits:
                 cash = _close_position(
                     portfolio, entry_commissions, cash, symbol, position,
                     bar["close"], ts, strategy.__name__, regime.value, fills,
@@ -169,6 +218,9 @@ def run_backtest(
             fill_price = costs.fill_price(bar["close"], is_buy=is_long)
             commission = costs.commission(qty, fill_price)
             stop_price = risk_manager.stop_price_for(fill_price, atr_value, is_long)
+
+            if use_bracket_exits:
+                take_profit_prices[symbol] = risk_manager.take_profit_price_for(fill_price, atr_value, is_long)
 
             cash += (-qty * fill_price - commission) if is_long else (qty * fill_price - commission)
             entry_commissions[symbol] = commission
