@@ -27,7 +27,7 @@ import ib_compat
 
 ib_compat.ensure_event_loop()
 
-from ib_insync import IB, MarketOrder, Stock, StopOrder, util
+from ib_insync import IB, LimitOrder, MarketOrder, Stock, StopOrder, util
 
 import config
 from bot import risk_manager, trade_log
@@ -125,6 +125,59 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
         on_status(trade)
 
 
+def _watch_bracket(stop_trade, tp_trade, symbol: str, on_result) -> None:
+    """
+    Watches a resting stop-loss/take-profit OCO pair placed by place_entry()
+    when config.USE_BRACKET_EXITS is True.
+
+    Unlike _watch_trade() (built for an immediate market order's fill
+    confirmation, with a 15s timeout), a bracket leg is a resting order that
+    may sit for hours or days before filling -- holds can carry overnight
+    (config.ALLOW_OVERNIGHT_HOLDS, swing-only design) -- so this listens
+    indefinitely on both legs' statusEvent, no timeout. Whichever leg fills
+    first calls on_result(fill_price, commission, was_stop) exactly once.
+    IBKR's own OCO group (matching ocaGroup + ocaType=1 on both orders, set
+    in place_entry) cancels the other leg automatically once one fills --
+    that resulting "Cancelled" status on the sibling is swallowed here, not
+    treated as an error or a second fill.
+    """
+    done = False
+
+    def commission_total(trade) -> float:
+        return sum(
+            fill.commissionReport.commission
+            for fill in trade.fills
+            if fill.commissionReport is not None
+        )
+
+    def finish(trade, was_stop: bool) -> None:
+        nonlocal done
+        if done:
+            return
+        done = True
+        stop_trade.statusEvent -= on_stop_status
+        tp_trade.statusEvent -= on_tp_status
+        on_result(trade.orderStatus.avgFillPrice or 0.0, commission_total(trade), was_stop)
+
+    def on_stop_status(t) -> None:
+        if t.orderStatus.status == "Filled":
+            finish(t, True)
+
+    def on_tp_status(t) -> None:
+        if t.orderStatus.status == "Filled":
+            finish(t, False)
+
+    stop_trade.statusEvent += on_stop_status
+    tp_trade.statusEvent += on_tp_status
+
+    # Handle the (unlikely but possible) case where a leg is already
+    # filled by the time we attach the listener.
+    if stop_trade.orderStatus.status == "Filled":
+        finish(stop_trade, True)
+    elif tp_trade.orderStatus.status == "Filled":
+        finish(tp_trade, False)
+
+
 def place_entry(contract, symbol: str, is_long: bool, qty: float, atr_value: float, strategy_name: str, regime: Regime) -> None:
     action = "BUY" if is_long else "SELL"
     stop_action = "SELL" if is_long else "BUY"
@@ -136,10 +189,6 @@ def place_entry(contract, symbol: str, is_long: bool, qty: float, atr_value: flo
             return
 
         stop_price = risk_manager.stop_price_for(fill_price, atr_value, is_long)
-        stop_order = StopOrder(stop_action, qty, stop_price)
-        stop_order.tif = "GTC"  # good-til-cancelled -- must survive across sessions
-                                 # since holds may carry overnight (swing-only design)
-        ib.placeOrder(contract, stop_order)
 
         cash += (-qty * fill_price - commission) if is_long else (qty * fill_price - commission)
         entry_commissions[symbol] = commission
@@ -151,11 +200,70 @@ def place_entry(contract, symbol: str, is_long: bool, qty: float, atr_value: flo
             stop_price=stop_price, strategy=strategy_name, regime=regime.value,
             equity_after=portfolio.equity, realized_pnl=None,
         )
-        logger.info("Opened %s %s qty=%s @ %s stop=%s commission=%.2f (%s/%s)",
-                    action, symbol, qty, fill_price, stop_price, commission, strategy_name, regime.value)
+
+        if config.USE_BRACKET_EXITS:
+            take_profit_price = risk_manager.take_profit_price_for(fill_price, atr_value, is_long)
+
+            oca_group = f"{symbol}_{util.now().timestamp()}"
+            stop_order = StopOrder(stop_action, qty, stop_price)
+            stop_order.tif = "GTC"
+            stop_order.ocaGroup = oca_group
+            stop_order.ocaType = 1  # cancel remaining orders in the group on any fill, no blocking
+
+            tp_order = LimitOrder(stop_action, qty, take_profit_price)
+            tp_order.tif = "GTC"
+            tp_order.ocaGroup = oca_group
+            tp_order.ocaType = 1
+
+            stop_trade = ib.placeOrder(contract, stop_order)
+            tp_trade = ib.placeOrder(contract, tp_order)
+            logger.info("Opened %s %s qty=%s @ %s bracket: stop=%s take_profit=%s commission=%.2f (%s/%s)",
+                        action, symbol, qty, fill_price, stop_price, take_profit_price, commission, strategy_name, regime.value)
+            _watch_bracket(stop_trade, tp_trade, symbol, _make_bracket_exit_handler(symbol, fill_price, is_long, qty))
+        else:
+            stop_order = StopOrder(stop_action, qty, stop_price)
+            stop_order.tif = "GTC"  # good-til-cancelled -- must survive across sessions
+                                     # since holds may carry overnight (swing-only design)
+            ib.placeOrder(contract, stop_order)
+            logger.info("Opened %s %s qty=%s @ %s stop=%s commission=%.2f (%s/%s)",
+                        action, symbol, qty, fill_price, stop_price, commission, strategy_name, regime.value)
 
     entry_trade = ib.placeOrder(contract, MarketOrder(action, qty))
     _watch_trade(entry_trade, symbol, on_fill)
+
+
+def _make_bracket_exit_handler(symbol: str, entry_price: float, is_long: bool, qty: float):
+    """
+    Returns the on_result callback _watch_bracket() invokes when either the
+    stop-loss or take-profit leg fills. Mirrors place_exit()'s on_fill
+    accounting (realized PnL, cash, portfolio, trade log) since this is the
+    bracket-exit equivalent of that path -- the position is closed by IBKR
+    filling a resting order, not by the bot placing a market exit order.
+    """
+    def on_result(fill_price: float, commission: float, was_stop: bool) -> None:
+        global cash
+        if fill_price <= 0:
+            logger.error("Bracket exit for %s did not report a fill -- position left open in local state, check IBKR manually.", symbol)
+            return
+
+        gross = (fill_price - entry_price) * qty if is_long else (entry_price - fill_price) * qty
+        entry_commission = entry_commissions.pop(symbol, 0.0)
+        realized_pnl = gross - entry_commission - commission
+
+        cash += (qty * fill_price - commission) if is_long else (-qty * fill_price - commission)
+        position = portfolio.get_position(symbol)
+        stop_price = position.stop_price if position else None
+        portfolio.close_position(symbol)
+
+        exit_kind = "stop_loss" if was_stop else "take_profit"
+        trade_log.log_trade(
+            symbol=symbol, action="exit", quantity=qty, price=fill_price, commission=commission,
+            stop_price=stop_price, strategy=exit_kind, regime="n/a",
+            equity_after=portfolio.equity, realized_pnl=realized_pnl,
+        )
+        logger.info("Closed %s @ %s via %s commission=%.2f realized_pnl=%.2f", symbol, fill_price, exit_kind, commission, realized_pnl)
+
+    return on_result
 
 
 def place_exit(contract, symbol: str, strategy_name: str, regime: Regime) -> None:
@@ -192,6 +300,14 @@ def place_exit(contract, symbol: str, strategy_name: str, regime: Regime) -> Non
 
 
 def flatten_all(contracts: dict) -> None:
+    # NOTE: this places a market order to close each position but does not
+    # explicitly cancel that position's resting protective order(s) (the
+    # single StopOrder in normal mode, or the stop+take-profit OCO pair
+    # under config.USE_BRACKET_EXITS) -- a pre-existing gap (not introduced
+    # by bracket exits) that predates this function. IBKR will reject a
+    # resting order against a symbol with no position once it's flat, so
+    # this is not expected to open a new unintended position, but stale
+    # orders can still show up in TWS until manually cancelled.
     for symbol in list(portfolio.positions.keys()):
         place_exit(contracts[symbol], symbol, "circuit_breaker", Regime.RANGING)
 
@@ -240,6 +356,12 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
         )
 
         if signal is Signal.EXIT:
+            if config.USE_BRACKET_EXITS:
+                # Exits are bracket-driven only (resting stop-loss/take-profit
+                # OCO pair placed at entry, see place_entry) -- the strategy's
+                # own EXIT signal is ignored entirely while a bracket is
+                # active, per config.USE_BRACKET_EXITS's contract.
+                return
             place_exit(contract, symbol, strategy.__name__, regime)
             return
 
