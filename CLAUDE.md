@@ -1,5 +1,106 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-24, later) — daily-bar 12-1 month momentum tested on a new `swing-trading` branch: no validated edge on any of SPY/QQQ/IWM/TSLA/GOOGL
+**New branch: `swing-trading`** (created off `main`, pushed to origin, not yet merged/PR'd). Purpose: test the operator's hypothesis that a genuinely
+different timeframe -- daily bars, weeks-to-months holding, driven by
+institutional/fundamental flows rather than 15-min HFT/market-making --
+might show a real edge even on the mega-cap names (SPY/QQQ/TSLA/GOOGL) that
+7 different intraday strategy types already failed on (see the entry
+directly below this one). This is a genuinely different build from the
+`trend_following_only` intraday idea that was paused before the restart --
+that plan is unaffected and still queued if this daily approach doesn't
+pan out.
+
+**Data**: pulled 5 years of real daily bars (`"5 Y"` / `"1 day"` via
+`backtest.fetch_ibkr_data`, TWS confirmed connected on port 7497 paper
+first) for SPY, QQQ, IWM, TSLA, GOOGL -- 1253 bars/symbol,
+2021-09-26 to 2026-09-22. Saved to `data/historical/` as usual
+(gitignored, not committed, matching how every prior data pull in this
+project has been handled).
+
+**Built `backtest/daily_momentum.py`** -- a new, standalone daily-bar
+backtest engine, deliberately NOT built on top of the intraday
+`backtest/engine.py`/`bot/regime.py`/`bot/risk_manager.py` machinery (that
+stack is ADX-regime and ATR-risk-sizing specific to 15-min bars; daily
+swing momentum is a different enough mechanism to warrant a fresh, simpler
+implementation, matching the operator's brief). Implements the classic
+academic "12-1 month momentum factor" (Jegadeesh & Titman), single-
+instrument long/flat only (this bot is a per-symbol systematic trader, not
+a cross-sectional portfolio ranker, so there's no "top N of universe"
+ranking -- just each symbol's own trailing momentum sign):
+- **Formation period**: trailing `formation_days` trading days of return
+  (default 252 ~= 12mo).
+- **Skip period**: the most recent `skip_days` trading days (default 21
+  ~= 1mo) are excluded from the formation window -- the standard academic
+  design, since the most recent month shows short-term mean reversion, a
+  different effect that would contaminate the momentum signal.
+- **Rebalance frequency**: signal is only re-evaluated every
+  `rebalance_days` trading days (default 21 ~= monthly), matching the
+  standard "form portfolios monthly" academic cadence rather than
+  re-checking every bar.
+- **Entry/exit**: go long at the next rebalance if trailing 12-1 momentum
+  is positive; flatten at the next rebalance if it's turned negative. No
+  separate ATR stop -- the exit mechanism IS the monthly re-evaluation.
+- **Sizing**: fully invested (100% of cash) when long, flat otherwise --
+  single instrument, no cross-instrument allocation decision to make.
+- All three parameters (`formation_days`, `skip_days`, `rebalance_days`)
+  are function arguments, grid-searchable, not hardcoded.
+- Reuses `backtest/costs.py` (real IBKR commission/slippage model) and the
+  same `Fill`/`BacktestResult` dataclasses from `backtest/engine.py` so
+  `backtest/metrics.summarize()` works unmodified on its output.
+
+**Built `backtest/validate_daily_momentum.py`** -- same out-of-sample
+discipline as `backtest/validate_strategies.py`/`validate_new_symbols.py`:
+5yr history split at the time midpoint (626/627 bars, 2021-09-26 to
+2024-03-21 in-sample, 2024-03-24 to 2026-09-22 out-of-sample, never
+searched over), 12-combo grid search
+(`formation_days` in {126, 189, 252} x `skip_days` in {0, 21} x
+`rebalance_days` in {21, 63}) per symbol individually on the in-sample
+half only, top-3 in-sample combos re-tested out-of-sample, and -- **the
+non-negotiable check per this project's own 2026-09-18 QQQ momentum-
+rotation false-positive lesson** -- every out-of-sample result benchmarked
+against simple buy-and-hold on the identical window/symbol. Verdicts use
+the same 3-way label as `validate_strategies.py`: REAL EDGE (beats
+buy-and-hold) / POSITIVE BUT BEATEN BY BUY-AND-HOLD (not a real edge) /
+FAILED OOS.
+
+**Full out-of-sample results, best (#1) in-sample combo per symbol:**
+
+| Symbol | Best combo (formation/skip/rebalance days) | OOS return | OOS profit factor | Buy-and-hold (same window) | Verdict |
+|--------|---------------------------------------------|-----------:|-------------------:|----------------------------:|---------|
+| SPY    | 189 / 0 / 21   | +29.10% | inf   | +47.82%  | POSITIVE BUT BEATEN BY BUY-AND-HOLD |
+| QQQ    | 126 / 0 / 21   | +19.16% | 23.48 | +66.42%  | POSITIVE BUT BEATEN BY BUY-AND-HOLD |
+| IWM    | 126 / 0 / 63   | -13.65% | 0.00  | +37.74%  | FAILED OOS |
+| TSLA   | 126 / 0 / 21   | +24.57% | 6.35  | +119.86% | POSITIVE BUT BEATEN BY BUY-AND-HOLD |
+| GOOGL  | 126 / 21 / 63  | +24.30% | 18.20 | +126.39% | POSITIVE BUT BEATEN BY BUY-AND-HOLD |
+
+**Verdict: no validated edge on any of the 5 symbols.** Four of five
+produced a positive out-of-sample return, which on its own would look
+promising -- but every single one was beaten, often by a wide margin, by
+just buying and holding over the same window. The out-of-sample window
+(2024-03 to 2026-09) was a strong, sustained rally across all 5 names
+(buy-and-hold ranged from +37.7% on IWM to +126.4% on GOOGL) -- this is
+the exact same failure shape as the 2026-09-18 QQQ cross-sectional
+momentum-rotation finding documented below: an always-mostly-long strategy
+captures rally beta by construction, and that beta alone can look like a
+great absolute return while still carrying no real signal. IWM -- the
+project's one instrument with a genuine validated intraday edge -- is also
+the one clear FAILED OOS here on daily momentum, meaning IWM's edge does
+not transfer to this timeframe/mechanism either. **Honest read: this is
+another "no edge" finding, not a partial win** -- don't describe the
+positive absolute returns above as progress without the buy-and-hold
+comparison attached, matching the standing lesson from the QQQ rotation
+test.
+
+**Not yet tried, if revisiting this angle**: a market-neutral variant
+(long top performer / flat or short weakest, rather than always-mostly-
+long) would remove the beta-capture problem the same way it was flagged
+as an option for the QQQ pairs/rotation work below -- untested here. Also
+untested: a cross-sectional version (rank SPY/QQQ/IWM/TSLA/GOOGL against
+each other monthly, same as the ruled-out QQQ/SPY/IWM rotation test) --
+deliberately not built, since the operator's brief for this task was
+explicitly single-instrument, matching the bot's per-symbol architecture.
+
 ## Current status (2026-09-24) — TSLA/GOOGL/MSFT/AAPL/NVDA explored: no edge with existing mean-reversion/VWAP strategies; momentum testing planned next
 **Operator asked to add TSLA, GOOGL, MSFT, AAPL, NVDA to the bot's universe.**
 Before any live/paper trading, ran the same out-of-sample discipline used
