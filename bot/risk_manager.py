@@ -59,7 +59,18 @@ def _stop_distance(entry_price: float, atr_value: float) -> float:
 
 def stop_price_for(entry_price: float, atr_value: float, is_long: bool) -> float:
     distance = _stop_distance(entry_price, atr_value)
-    return entry_price - distance if is_long else entry_price + distance
+    price = entry_price - distance if is_long else entry_price + distance
+    # Round to cents -- IBKR rejects prices with more precision than the
+    # contract's minimum price variation (equities: $0.01). Hit live
+    # 2026-09-24 (Warning 110, see CLAUDE.md): an un-rounded stop price
+    # (e.g. 756.9936032175) submitted from the new startup position-
+    # reconciliation path was rejected outright, leaving a reconciled
+    # position with no actual resting stop despite the bot believing one
+    # was placed. This was a pre-existing gap in this function (every
+    # stop this bot has EVER placed for a live order ran through this same
+    # unrounded math), just never triggered before because no live entry
+    # had completed the on_fill path cleanly until that same session.
+    return round(price, 2)
 
 
 def take_profit_price_for(entry_price: float, atr_value: float, is_long: bool) -> float:
@@ -68,10 +79,12 @@ def take_profit_price_for(entry_price: float, atr_value: float, is_long: bool) -
     per config.STOP_LOSS_MODE) scaled by config.TAKE_PROFIT_RATIO (the
     risk:reward multiple) -- e.g. a 5% fixed stop and TAKE_PROFIT_RATIO=2.0
     gives a 10% take-profit, a 2:1 reward:risk bracket. Only used when
-    config.USE_BRACKET_EXITS is True.
+    config.USE_BRACKET_EXITS is True. Rounded to cents for the same reason
+    as stop_price_for() -- see its docstring.
     """
     distance = _stop_distance(entry_price, atr_value) * config.TAKE_PROFIT_RATIO
-    return entry_price + distance if is_long else entry_price - distance
+    price = entry_price + distance if is_long else entry_price - distance
+    return round(price, 2)
 
 
 def exposure_cap_allows(

@@ -23,6 +23,7 @@ import logging
 import os
 import signal
 import sys
+from datetime import datetime
 from typing import Dict
 
 import ib_compat
@@ -87,13 +88,31 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
     running' when invoked from a callback that the loop is already inside --
     hit live 2026-09-23 on a QQQ entry, see CLAUDE.md. There is no way to
     block-and-pump from inside a running-loop callback, so this doesn't poll
-    at all: it races trade.statusEvent (fires on every status change,
-    including fills and cancels) against a call_later timeout, and invokes
-    on_result(avg_price, commission) exactly once, whichever happens first --
-    same effective timeout/logging behavior as the old polling loop, just
-    event-driven instead of blocking.
+    at all: it listens on trade.statusEvent (fires on every status change,
+    including fills and cancels) and invokes on_result(avg_price, commission)
+    exactly once, when IBKR reports the order as actually done.
+
+    NOTE (2026-09-24 incident, see CLAUDE.md): this used to also race a
+    `timeout` seconds call_later against statusEvent and give up (calling
+    on_result with a 0.0 "not filled" price and detaching the listener) if
+    the order hadn't resolved by then. Live SPY entry sat in PendingSubmit
+    for ~15s, the timeout fired and the bot treated it as a dead order (no
+    position opened, no bracket placed) -- but IBKR silently kept the order
+    alive server-side and it actually filled ~19 minutes later. Because the
+    listener had already been detached, that real fill was invisible to the
+    bot: portfolio/cash never updated, no stop-loss/take-profit bracket was
+    ever placed, and the position sat completely unprotected in the account
+    while the bot's own state showed it as flat. `timeout` now only controls
+    a one-time diagnostic log (does NOT give up or detach the listener) --
+    the listener stays attached until IBKR reports a genuinely terminal
+    status (Filled, Cancelled, ApiCancelled, Inactive -- whatever
+    trade.isDone() considers done), however long that takes. An order that
+    never resolves at all (event truly lost, not just slow) will still hang
+    here indefinitely -- a known tradeoff, preferred over ever again
+    silently abandoning a fill that could still land.
     """
     done = False
+    alerted_stale = False
 
     def finish(avg_price: float, commission: float) -> None:
         nonlocal done
@@ -101,11 +120,11 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
             return
         done = True
         trade.statusEvent -= on_status
-        timeout_handle.cancel()
+        stale_alert_handle.cancel()
         if avg_price <= 0:
             logger.error(
-                "Order for %s did not report a fill within %.0fs (status=%s)",
-                symbol, timeout, trade.orderStatus.status,
+                "Order for %s finished with no fill (status=%s)",
+                symbol, trade.orderStatus.status,
             )
         on_result(avg_price, commission)
 
@@ -121,11 +140,27 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
             return
         finish(t.orderStatus.avgFillPrice or 0.0, commission_total())
 
-    def on_timeout() -> None:
-        finish(trade.orderStatus.avgFillPrice or 0.0, commission_total())
+    def on_stale_alert() -> None:
+        nonlocal alerted_stale
+        if done or alerted_stale:
+            return
+        alerted_stale = True
+        logger.warning(
+            "Order for %s still not resolved after %.0fs (status=%s) -- IBKR/TWS "
+            "order acknowledgment can lag well past this; continuing to wait "
+            "rather than giving up (see 2026-09-24 incident in CLAUDE.md, where "
+            "abandoning here silently missed a real fill 19 minutes later). Will "
+            "keep watching until IBKR reports the order Filled or truly Cancelled.",
+            symbol, timeout, trade.orderStatus.status,
+        )
+        send_slack_alert(
+            f":hourglass: {symbol} order still pending {timeout:.0f}s after "
+            f"submission (status={trade.orderStatus.status}) -- bot is still "
+            f"watching, not abandoning it. Check TWS if this persists."
+        )
 
     trade.statusEvent += on_status
-    timeout_handle = util.getLoop().call_later(timeout, on_timeout)
+    stale_alert_handle = util.getLoop().call_later(timeout, on_stale_alert)
 
     if trade.isDone():  # already terminal (e.g. filled before we attached the listener)
         on_status(trade)
@@ -199,7 +234,7 @@ def place_entry(contract, symbol: str, is_long: bool, qty: float, atr_value: flo
         cash += (-qty * fill_price - commission) if is_long else (qty * fill_price - commission)
         entry_commissions[symbol] = commission
         portfolio.open_position(
-            Position(symbol=symbol, quantity=qty if is_long else -qty, entry_price=fill_price, stop_price=stop_price, opened_at=util.now())
+            Position(symbol=symbol, quantity=qty if is_long else -qty, entry_price=fill_price, stop_price=stop_price, opened_at=datetime.now())
         )
         trade_log.log_trade(
             symbol=symbol, action=action.lower(), quantity=qty, price=fill_price, commission=commission,
@@ -210,7 +245,7 @@ def place_entry(contract, symbol: str, is_long: bool, qty: float, atr_value: flo
         if config.USE_BRACKET_EXITS:
             take_profit_price = risk_manager.take_profit_price_for(fill_price, atr_value, is_long)
 
-            oca_group = f"{symbol}_{util.now().timestamp()}"
+            oca_group = f"{symbol}_{datetime.now().timestamp()}"
             stop_order = StopOrder(stop_action, qty, stop_price)
             stop_order.tif = "GTC"
             stop_order.ocaGroup = oca_group
@@ -270,6 +305,96 @@ def _make_bracket_exit_handler(symbol: str, entry_price: float, is_long: bool, q
         logger.info("Closed %s @ %s via %s commission=%.2f realized_pnl=%.2f", symbol, fill_price, exit_kind, commission, realized_pnl)
 
     return on_result
+
+
+def reconcile_positions_from_ibkr(contracts: dict) -> None:
+    """
+    Adopts any real IBKR position this bot's own in-memory Portfolio doesn't
+    already know about, at startup, before any bar is processed.
+
+    Added 2026-09-24 after a real incident (see CLAUDE.md and
+    _watch_trade's docstring): a SPY entry order that _watch_trade's old
+    15s timeout gave up on actually filled ~19 minutes later. Because the
+    fill event arrived after the listener had been detached, portfolio.
+    open_position() was never called and no stop-loss/take-profit bracket
+    was ever placed -- the position sat live and completely unprotected
+    while the bot's own state showed it as flat. The _watch_trade timeout
+    bug itself is fixed (it no longer gives up), but that alone does NOT
+    make the bot aware of a position that predates a fresh process start
+    (e.g. this exact stuck-position scenario recurring, a manual TWS
+    trade, or any other bot/broker desync) -- only a real reconciliation
+    against IBKR's own reported positions does that.
+
+    For every real IBKR position with a nonzero quantity:
+    - If bot/main.py's own `portfolio` already has a Position for that
+      symbol, trust the existing state (it was opened through the normal
+      on_fill path) and skip it.
+    - Otherwise, this is an untracked/orphaned position. Adopt it into
+      `portfolio` using IBKR's own avgCost as entry_price (the true fill
+      price -- more accurate than trying to reconstruct it from a stale
+      order), place a FRESH protective stop-loss immediately using
+      config.FIXED_STOP_LOSS_PCT off the current price (no live bar
+      history exists yet this early in startup, so a real ATR-based stop
+      can't be computed -- this is always a fixed-% safety-net stop
+      regardless of config.STOP_LOSS_MODE), and fire a loud Slack alert --
+      this is always an anomaly worth a human looking at, not a routine
+      event.
+
+    Deliberately does NOT attempt to reconstruct a take-profit leg or the
+    original entry commission/strategy/regime that opened it -- those are
+    unrecoverable once the original on_fill closure is gone. A stop-loss
+    (downside protection) is the priority; the position's PnL accounting
+    from this point forward will be correct (uses IBKR's real avgCost),
+    but any commission/PnL from BEFORE this reconciliation point is not
+    retroactively reflected in `cash`.
+    """
+    ib_positions = ib.positions()
+    for ib_pos in ib_positions:
+        symbol = ib_pos.contract.symbol
+        qty = ib_pos.position
+        if qty == 0:
+            continue
+        if symbol not in contracts:
+            continue  # not one of this bot's active universe symbols -- ignore
+        if portfolio.has_position(symbol):
+            continue  # already tracked normally, nothing to reconcile
+
+        is_long = qty > 0
+        entry_price = ib_pos.avgCost
+        latest_price = entry_price  # best available estimate until a live bar arrives
+        # No live bar history exists yet at this point in startup (reconciliation
+        # runs before any bars have streamed in), so a real ATR value can't be
+        # computed -- always fall back to a fixed_pct-style stop distance off the
+        # current price, regardless of config.STOP_LOSS_MODE, rather than pretend
+        # an ATR reading exists. This is a one-time safety-net stop for an
+        # orphaned position, not meant to exactly match the bot's normal sizing.
+        stop_distance = latest_price * config.FIXED_STOP_LOSS_PCT
+        stop_price = round(latest_price - stop_distance if is_long else latest_price + stop_distance, 2)
+
+        portfolio.open_position(
+            Position(symbol=symbol, quantity=qty, entry_price=entry_price, stop_price=stop_price, opened_at=datetime.now())
+        )
+
+        contract = contracts[symbol]
+        stop_action = "SELL" if is_long else "BUY"
+        stop_order = StopOrder(stop_action, abs(qty), stop_price)
+        stop_order.tif = "GTC"
+        ib.placeOrder(contract, stop_order)
+
+        logger.error(
+            "RECONCILED an untracked IBKR position at startup: %s qty=%s avgCost=%s -- "
+            "this position existed in the account but bot/main.py's own state had no "
+            "record of it (see 2026-09-24 incident in CLAUDE.md). Adopted into local "
+            "portfolio and placed a fresh protective stop at %s. This should be "
+            "investigated -- it means a prior process instance lost track of a real fill.",
+            symbol, qty, entry_price, stop_price,
+        )
+        send_slack_alert(
+            f":rotating_light: Reconciled an UNTRACKED {symbol} position at bot startup "
+            f"(qty={qty}, avgCost={entry_price:.2f}). Placed a fresh protective stop at "
+            f"{stop_price:.2f}. This means a previous run lost track of a real fill -- "
+            f"please verify in TWS."
+        )
 
 
 def place_exit(contract, symbol: str, strategy_name: str, regime: Regime) -> None:
@@ -590,6 +715,8 @@ def main() -> None:
             logger.info("Skipping %s at startup (status=%s)", symbol, status)
             continue
         subscribe_symbol(symbol, bar_lists, contracts)
+
+    reconcile_positions_from_ibkr(contracts)
 
     ib.run()
 

@@ -1,5 +1,116 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-24, late night) — first live entry under the new architecture exposed THREE real bugs: a silently-dropped late fill, an unrounded stop price, and no startup position reconciliation; all three fixed and verified live
+
+**What happened:** tonight's first SPY entry under the newly-merged unified
+strategy actually filled, but the bot never knew it. Root cause chain,
+found by watching the real log, not by review or backtesting (consistent
+with this project's whole history -- see the 2026-09-18/22/23 entries
+below):
+
+1. `_watch_trade()`'s 15s timeout (added 2026-09-23 to fix the event-loop-
+   already-running crash) fired while the SPY BUY order sat in
+   `PendingSubmit`, logged "did not fill", and detached its `statusEvent`
+   listener. The order was NOT actually dead -- IBKR filled it for real
+   ~19 minutes later (`Filled 1.0@763.55`), but with the listener already
+   detached, that fill was invisible to the bot: `portfolio.open_position()`
+   was never called, no stop-loss/take-profit bracket was ever placed, and
+   the position sat live and completely unprotected in the paper account
+   while the bot's own state showed SPY as flat.
+2. **Fix**: `_watch_trade()` no longer gives up on a timeout. The
+   `timeout` parameter now only fires a one-time diagnostic log + Slack
+   alert ("still pending, still watching") -- the `statusEvent` listener
+   stays attached until IBKR reports a genuinely terminal status, however
+   long that takes. Tradeoff: an order whose fill event is truly lost
+   (not just slow) will now hang `_watch_trade` indefinitely rather than
+   ever giving up -- accepted as the better failure mode after tonight's
+   incident, since silently abandoning a fill that could still land is
+   strictly worse than waiting too long.
+3. **Built real startup position reconciliation** (`reconcile_positions_from_ibkr()`
+   in `bot/main.py`, called once in `main()` after all symbols subscribe,
+   before `ib.run()` starts pumping bars) -- this didn't exist before at
+   all; the bot always started assuming it was flat everywhere regardless
+   of what IBKR actually held. Queries `ib.positions()`; for any real
+   position the bot's own `portfolio` doesn't already know about, adopts
+   it (IBKR's own `avgCost` as entry price), places a fresh protective
+   stop-loss immediately (`config.FIXED_STOP_LOSS_PCT` off current price
+   -- no live bar/ATR history exists yet this early in startup, so this
+   is always a fixed-% safety-net stop regardless of `config.STOP_LOSS_MODE`),
+   and fires a loud ERROR-level log + Slack alert, since an orphaned
+   position is always an anomaly worth a human looking at. Deliberately
+   does not attempt to reconstruct a take-profit leg or the original
+   entry's commission/strategy/regime -- those are unrecoverable once the
+   original `on_fill` closure is gone; a stop-loss (downside protection)
+   is the priority.
+4. **Building/testing #3 immediately surfaced two more real, independent
+   bugs**, both pre-existing and unrelated to tonight's specific incident:
+   - `place_entry`'s `on_fill` and the bracket OCA-group naming both called
+     `util.now()` -- **this method does not exist in the installed
+     ib_insync version** (`AttributeError: module 'ib_insync.util' has no
+     attribute 'now'`). This is a LATENT bug that would have crashed on
+     literally the FIRST successful live entry fill this bot ever
+     completed, tonight or previously -- it just never got exercised
+     before because no entry fill had ever cleanly reached this exact line
+     (tonight's SPY fill went through the broken timeout-abandon path
+     instead, never through `on_fill`). Fixed: added `from datetime import
+     datetime` and replaced all three `util.now()` call sites with
+     `datetime.now()`.
+   - `risk_manager.stop_price_for()` / `take_profit_price_for()` never
+     rounded their computed price to the contract's minimum price
+     variation ($0.01 for equities). The reconciliation code's first
+     attempt to place a protective stop was rejected outright by IBKR
+     (`Warning 110: The price does not conform to the minimum price
+     variation`) with a price like `756.9936032175` -- meaning the
+     position was STILL unprotected even after "successfully" reconciling
+     it, because the resulting stop order silently failed to actually
+     rest in the account. This is also a pre-existing gap in BOTH
+     functions (every stop/take-profit this bot has ever computed for a
+     live order used this same unrounded math), just never triggered
+     before for the same reason as the `util.now()` bug -- no entry had
+     ever cleanly reached the bracket-placement code. Fixed: both
+     functions now `round(price, 2)` before returning. This also very
+     slightly changed backtest results (SPY win rate 36.67%->37.36% on
+     the default single-symbol run) since `backtest/engine.py` calls the
+     same functions -- a small, correct fix (backtests were previously
+     simulating fills at prices IBKR would reject in reality), not a
+     regression.
+
+**Verified before restarting the live process**: `py_compile` on both
+changed files, `bot.main` still imports cleanly, `tests.test_universe`
+still 15/15 pass, `backtest.run_backtest --symbols SPY` still runs
+end-to-end. **Verified live, after restarting**: paused the market-hours-
+supervisor cron job first (to avoid a race with a manual restart),
+`taskkill`'d the broken running process, confirmed via a direct
+`ib.positions()`/`ib.reqAllOpenOrders()` check that the SPY position and
+the operator's own manual protective order were both untouched by the
+crashed reconciliation attempt, restarted `bot.main` fresh, and confirmed
+in the new log AND via a second direct IBKR query that
+`reconcile_positions_from_ibkr()` correctly detected the untracked SPY
+position, adopted it, and this time successfully placed a resting stop
+order (`STP @ 756.99`, `PreSubmitted`, confirmed via `ib.reqAllOpenOrders()`)
+-- genuinely live in the account, not just locally believed to be placed.
+Resumed the market-hours-supervisor job afterward (it correctly no-ops
+since the bot it would start is already running under the same PID
+tracking).
+
+**Operator's own manual protective order** (a trailing-stop-limit,
+`SELL LMT` trail stop 762.77 / limit 764.66, placed directly in TWS,
+independent of anything the bot did) remained resting throughout this
+entire incident and fix cycle -- the SPY position had at least one real
+resting protective order for most of the affected window, from whenever
+that manual order was placed onward.
+
+**Not yet fixed, worth flagging as a known gap**: `reconcile_positions_from_ibkr()`
+only runs once, at process startup. If the bot's tracking of a position
+desyncs from IBKR's real state again WHILE the process keeps running
+(rather than across a restart), there's still no self-healing for that --
+same class of gap as the pre-existing "no reconnect-with-backoff for a
+TWS-forced nightly restart" note further down this file. Also: this
+incident (and the two bugs found while fixing it) only surfaced because a
+real order was placed and watched live -- reinforcing, yet again, this
+project's standing lesson that backtesting and code review do not catch
+live-only failure modes; only running the bot for real does.
+
 ## Current status (2026-09-24, night) — unified-strategy-universe merged to `main`, live paper session scheduled to auto-start tonight via the resumed cron supervisor
 
 **Merged `unified-strategy-universe` into `main` and pushed** (clean fast-forward,
