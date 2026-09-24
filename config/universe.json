@@ -1,0 +1,7 @@
+{
+  "SPY":   {"status": "active"},
+  "QQQ":   {"status": "active"},
+  "IWM":   {"status": "active"},
+  "TSLA":  {"status": "active"},
+  "GOOGL": {"status": "active"}
+}

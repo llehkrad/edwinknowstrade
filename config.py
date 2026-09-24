@@ -16,7 +16,11 @@ IB_PORT = int(os.getenv("IB_PORT", "7497"))  # 7497 = paper TWS, 7496 = live TWS
 IB_CLIENT_ID = int(os.getenv("IB_CLIENT_ID", "1"))
 
 # --- Universe ---
-INSTRUMENTS = ["SPY", "QQQ", "IWM"]
+# Symbol on/off list moved to config/universe.json (hot-reloadable, see
+# bot/universe.py) -- added 2026-09-24 alongside the unified vwap_reversion_only
+# strategy so symbols can be activated/deactivated without a code change or
+# restart. See CLAUDE.md 2026-09-24 "unified strategy + hot-reloadable universe".
+UNIVERSE_CONFIG_PATH = "config/universe.json"
 
 # --- Candle timeframe ---
 # ib_insync barSizeSetting string. Start on 15 mins; drop to "5 mins" (or lower)
@@ -51,15 +55,16 @@ ADX_TREND_THRESHOLD = 25  # ADX >= this => trending regime (trend-following acti
                           # ADX <  this => ranging regime (mean-reversion active)
 
 # --- Strategy set selection ---
-# "sma_zscore" = original SMA-crossover trend-following + SMA-zscore mean
-# reversion (bot/strategies/trend_following.py, mean_reversion.py).
-# "vwap_donchian" = VWAP-deviation reversion + Donchian channel breakout
-# (bot/strategies/vwap_reversion.py, donchian_breakout.py) -- added
-# 2026-09-16 after "sma_zscore" showed a negative edge across its ENTIRE
-# grid-searched parameter space on real SPY/QQQ/IWM 15-min data (see
-# CLAUDE.md). Both resolve through bot/strategy_registry.py so live and
-# backtest can't diverge on which pair is active.
-STRATEGY_SET = "sma_zscore"
+# Permanently "vwap_reversion_only" as of 2026-09-24 -- unified across every
+# symbol in config/universe.json, replacing the old per-symbol
+# config.INSTRUMENT_CONFIG selection. Chosen because it was the only strategy
+# with positive backtested breadth across 4/5 symbols (SPY, IWM, QQQ, TSLA)
+# in the fixed-pct SL/TP sweep -- see
+# research/unified_strategy_universe_plan_2026-09-24.md and CLAUDE.md. Other
+# STRATEGY_SET values below remain valid and are still used by backtest
+# scripts to test those strategies standalone; they are simply no longer
+# selectable per-symbol in live/paper trading.
+STRATEGY_SET = "vwap_reversion_only"
 
 # --- Mean reversion strategy (sma_zscore set; TODO: tune via backtest) ---
 MR_MA_PERIOD = 20
@@ -116,10 +121,11 @@ BB_SQUEEZE_PERCENTILE = 0.20   # squeeze = band width in the bottom 20% of its o
 # is ignored entirely -- the position only closes when the stop or the
 # take-profit is hit. Take-profit distance = STOP_LOSS_ATR_MULT * ATR *
 # TAKE_PROFIT_RATIO (i.e. TAKE_PROFIT_RATIO is the risk:reward multiple).
-# Default False/2.0 so this is strictly opt-in -- existing behavior/results
-# for every strategy not being bracket-tested is unaffected.
-USE_BRACKET_EXITS = False
-TAKE_PROFIT_RATIO = 2.0
+# As of 2026-09-24, permanently True/3.0 -- the standardized unified exit
+# (1.0% fixed-pct stop x 3.0 TAKE_PROFIT_RATIO = 3:1) chosen per
+# research/unified_strategy_universe_plan_2026-09-24.md and CLAUDE.md.
+USE_BRACKET_EXITS = True
+TAKE_PROFIT_RATIO = 3.0
 
 # Stop-loss distance basis: "atr" (default, existing behavior) or "fixed_pct"
 # -- a simple, symbol/volatility-agnostic stop set as a flat % of entry price
@@ -128,8 +134,10 @@ TAKE_PROFIT_RATIO = 2.0
 # distance and FIXED_STOP_LOSS_PCT is used instead; take-profit still uses
 # TAKE_PROFIT_RATIO * (that stop distance), so the R:R ratio semantics are
 # unchanged -- only how the base "1R" distance is computed differs.
-STOP_LOSS_MODE = "atr"  # "atr" | "fixed_pct"
-FIXED_STOP_LOSS_PCT = 0.05  # 5% of entry price, only used when STOP_LOSS_MODE == "fixed_pct"
+# As of 2026-09-24, permanently "fixed_pct"/0.01 (1.0%) -- see
+# research/unified_strategy_universe_plan_2026-09-24.md and CLAUDE.md.
+STOP_LOSS_MODE = "fixed_pct"  # "atr" | "fixed_pct"
+FIXED_STOP_LOSS_PCT = 0.01  # 1.0% of entry price, only used when STOP_LOSS_MODE == "fixed_pct"
 
 # --- Long-term trend filter (daily bars) ---
 # Added 2026-09-16 as a mechanically distinct angle after 900+ configs of
@@ -142,43 +150,6 @@ FIXED_STOP_LOSS_PCT = 0.05  # 5% of entry price, only used when STOP_LOSS_MODE =
 TREND_FILTER_ENABLED = True
 TREND_FILTER_SMA_PERIOD = 50
 TREND_FILTER_BAR_SIZE = "1 day"
-
-# --- Per-instrument strategy configuration ---
-# Added 2026-09-18 after extensive out-of-sample testing found genuinely
-# different validated approaches per instrument (see CLAUDE.md "Strategy
-# search findings"): SPY and IWM both show real, out-of-sample-validated
-# edge via VWAP-reversion; QQQ shows none across four different approaches
-# tried. Applied per-symbol via bot/instrument_config.py, which overrides
-# the relevant config.* attributes for whichever symbol is currently being
-# processed -- the same config-monkeypatching pattern backtest/optimize.py
-# already uses for grid-search combos. Safe here because both bot/main.py
-# and backtest/engine.py process one symbol fully (regime read through
-# entry/exit decision) before moving to the next within a given bar --
-# single-threaded and strictly sequential, never interleaved.
-INSTRUMENT_CONFIG = {
-    "SPY": {
-        "STRATEGY_SET": "vwap_reversion_only",
-        "VWAP_ENTRY_ATR_MULT": 2.5,
-        "VWAP_EXIT_ATR_MULT": 0.2,
-        "STOP_LOSS_ATR_MULT": 4.0,
-    },
-    "IWM": {
-        "STRATEGY_SET": "vwap_reversion_only",
-        "VWAP_ENTRY_ATR_MULT": 2.5,
-        "VWAP_EXIT_ATR_MULT": 0.35,
-        "STOP_LOSS_ATR_MULT": 4.0,
-    },
-    "QQQ": {
-        # QQQ's own best-fit IN-SAMPLE parameters -- already shown to fail
-        # out-of-sample (see CLAUDE.md). Kept active deliberately, to
-        # confirm the "no edge" finding via live paper trading, NOT to try
-        # to make QQQ profitable.
-        "STRATEGY_SET": "vwap_reversion_only",
-        "VWAP_ENTRY_ATR_MULT": 2.5,
-        "VWAP_EXIT_ATR_MULT": 0.5,
-        "STOP_LOSS_ATR_MULT": 2.0,
-    },
-}
 
 # --- Portfolio-level exposure cap ---
 # SPY/QQQ/IWM are more correlated with each other than the original SPY/QQQ/BTC

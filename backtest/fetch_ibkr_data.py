@@ -54,7 +54,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--duration", default="6 M", help='IBKR durationStr, e.g. "6 M", "1 Y"')
     parser.add_argument("--bar-size", default=config.BAR_SIZE, help='IBKR barSizeSetting, e.g. "15 mins"')
-    parser.add_argument("--symbols", nargs="+", default=config.INSTRUMENTS)
+    parser.add_argument("--symbols", nargs="+", default=["SPY", "QQQ", "IWM"])
     args = parser.parse_args()
 
     ib = IB()

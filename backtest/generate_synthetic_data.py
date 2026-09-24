@@ -49,7 +49,7 @@ def main() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
     start_prices = {"SPY": 550.0, "QQQ": 480.0, "IWM": 220.0}
 
-    for i, symbol in enumerate(config.INSTRUMENTS):
+    for i, symbol in enumerate(["SPY", "QQQ", "IWM"]):
         df = generate_bars(
             symbol,
             start_price=start_prices.get(symbol, 100.0),

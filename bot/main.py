@@ -18,7 +18,9 @@ CLAUDE.md. NOT a finished live-trading system: strategy parameters in
 config.py are placeholders pending backtesting, and the pre-live checklist
 (6mo+ backtest -> 2+ weeks paper trading -> live keys) has not been done yet.
 """
+import asyncio
 import logging
+import os
 import signal
 import sys
 from typing import Dict
@@ -33,12 +35,12 @@ import config
 from bot import risk_manager, trade_log
 from bot.alerts import send_slack_alert
 from bot.indicators import atr
-from bot.instrument_config import apply_instrument_overrides
 from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
 from bot.strategy_registry import get_strategies
 from bot.trend_filter import build_trend_map, entry_allowed
+from bot.universe import diff_universe, load_universe, reconcile_pending_disables
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("bot.main")
@@ -49,6 +51,10 @@ cash = config.ACCOUNT_EQUITY_USD
 entry_commissions: Dict[str, float] = {}
 trend_maps: Dict[str, dict] = {}  # symbol -> {date: "bullish"|"bearish"|None}, see bot/trend_filter.py
 halted = False  # set True once the circuit breaker fires; blocks new entries
+
+universe: Dict[str, str] = {}  # symbol -> "active"|"pending_disable"|"disabled", see bot/universe.py
+last_universe_mtime: float = 0.0
+daily_bar_lists: Dict[str, object] = {}  # symbol -> daily BarDataList, only populated when config.TREND_FILTER_ENABLED
 
 
 def strategy_for(regime: Regime):
@@ -299,6 +305,149 @@ def place_exit(contract, symbol: str, strategy_name: str, regime: Regime) -> Non
     _watch_trade(exit_trade, symbol, on_fill)
 
 
+async def _subscribe_symbol_async(symbol: str, bar_lists: dict, contracts: dict) -> None:
+    contract = Stock(symbol, "SMART", "USD")
+    await ib.qualifyContractsAsync(contract)
+    contracts[symbol] = contract
+
+    bars = await ib.reqHistoricalDataAsync(
+        contract, endDateTime="", durationStr=config.HISTORICAL_DURATION,
+        barSizeSetting=config.BAR_SIZE, whatToShow="TRADES", useRTH=True,
+        keepUpToDate=True,
+    )
+    bar_lists[symbol] = bars
+    bars.updateEvent += on_bar_update(symbol, contract, bar_lists, contracts)
+    logger.info("Subscribed to live %s bars for %s", config.BAR_SIZE, symbol)
+
+    if config.TREND_FILTER_ENABLED:
+        daily_bars = await ib.reqHistoricalDataAsync(
+            contract, endDateTime="", durationStr="2 Y",
+            barSizeSetting=config.TREND_FILTER_BAR_SIZE, whatToShow="TRADES", useRTH=True,
+            keepUpToDate=True,
+        )
+        daily_bar_lists[symbol] = daily_bars
+        daily_bars.updateEvent += on_daily_bar_update(symbol)
+        daily_df = util.df(daily_bars)
+        if daily_df is not None and len(daily_df) >= 2:
+            trend_maps[symbol] = build_trend_map(daily_df.set_index("date"))
+        logger.info("Subscribed to daily trend-filter bars for %s (%d-day SMA)", symbol, config.TREND_FILTER_SMA_PERIOD)
+
+
+def subscribe_symbol(symbol: str, bar_lists: dict, contracts: dict) -> None:
+    """
+    Subscribes to live config.BAR_SIZE bars (+ optional daily trend-filter
+    bars) for `symbol`, mutating bar_lists/contracts/daily_bar_lists/
+    trend_maps in place. Extracted from main()'s startup loop (was a plain
+    for-loop over config.INSTRUMENTS before the 2026-09-24 hot-reloadable
+    universe change) so it's also callable mid-run, when a symbol in
+    config/universe.json flips to "active" -- see _sync_universe() below.
+
+    ib.qualifyContracts()/ib.reqHistoricalData() are both BLOCKING calls
+    (they go through ib_insync's util.run() -> loop.run_until_complete())
+    -- safe to call directly at startup (main(), before ib.run() starts
+    pumping the loop) but calling a blocking ib_insync method from inside a
+    callback the loop is already running inside crashes with 'RuntimeError:
+    This event loop is already running' -- the exact same failure class as
+    the 2026-09-23 entry/exit-fill bug this codebase already hit and fixed
+    once (see _watch_trade's docstring above). _sync_universe() calls this
+    function from inside on_bar_update()'s handler, i.e. while ib.run()'s
+    loop IS already running, so this dispatches to the async API scheduled
+    via asyncio.ensure_future() (fire-and-forget, non-blocking, same
+    event-driven approach _watch_trade/_watch_bracket already use for this
+    exact problem) whenever the loop is already running, and falls back to
+    a plain blocking ib.run(coro) (identical to the old startup behavior)
+    when it isn't.
+    """
+    coro = _subscribe_symbol_async(symbol, bar_lists, contracts)
+    if util.getLoop().is_running():
+        asyncio.ensure_future(coro)
+    else:
+        ib.run(coro)
+
+
+def unsubscribe_symbol(symbol: str, bar_lists: dict, contracts: dict) -> None:
+    """
+    Cancels the live bar subscription(s) for `symbol` (config.BAR_SIZE +
+    optional daily trend-filter) and drops it from bar_lists/contracts/
+    trend_maps/daily_bar_lists.
+
+    ib.cancelHistoricalData() (confirmed against the installed ib_insync
+    0.9.86 source, ib.py/wrapper.py) only calls wrapper.endSubscription(),
+    which pops the wrapper's internal reqId bookkeeping -- it does NOT
+    detach the updateEvent listener this bot attached via `bars.updateEvent
+    += ...`, so updateEvent.clear() is called explicitly on each
+    BarDataList too (eventkit's Event.clear() removes all its listeners;
+    safe here since this bot is the only thing ever listening on either
+    BarDataList).
+    """
+    bars = bar_lists.pop(symbol, None)
+    if bars is not None:
+        bars.updateEvent.clear()
+        try:
+            ib.cancelHistoricalData(bars)
+        except Exception:
+            logger.exception("Failed to cancel live bar subscription for %s", symbol)
+
+    daily_bars = daily_bar_lists.pop(symbol, None)
+    if daily_bars is not None:
+        daily_bars.updateEvent.clear()
+        try:
+            ib.cancelHistoricalData(daily_bars)
+        except Exception:
+            logger.exception("Failed to cancel daily trend-filter subscription for %s", symbol)
+
+    contracts.pop(symbol, None)
+    trend_maps.pop(symbol, None)
+    logger.info("Unsubscribed %s (universe status no longer active)", symbol)
+
+
+def _sync_universe(bar_lists: dict, contracts: dict) -> None:
+    """
+    Runs once per completed bar, from inside on_bar_update()'s handler.
+
+    reconcile_pending_disables() is run every bar unconditionally (not
+    gated by the file's mtime) so a pending_disable symbol auto-flips to
+    disabled "the instant it goes flat", per the plan doc's Goal #3 and its
+    "Operator decisions locked in" -- this depends on portfolio state
+    (has the position closed?), not on the file having changed, so it can't
+    be gated behind a file-change check without risking a pending_disable
+    symbol sitting un-reconciled indefinitely if nobody happens to touch
+    the file again after the position closes.
+
+    config/universe.json itself is only re-read from disk when its mtime
+    has actually changed since the last bar (stat check every bar,
+    negligible cost; full JSON reparse only on an actual change) -- this is
+    the "check every bar" cadence from the plan doc's locked-in decisions,
+    and is what picks up manual edits (new symbols, a forced "disabled").
+    """
+    global universe, last_universe_mtime
+
+    pre_reconcile = dict(universe)
+    transitioned = reconcile_pending_disables(universe, portfolio)
+    if transitioned:
+        logger.info("Universe: auto-disabled after going flat: %s", transitioned)
+
+    try:
+        mtime = os.path.getmtime(config.UNIVERSE_CONFIG_PATH)
+    except OSError:
+        mtime = last_universe_mtime  # file missing/unreadable this tick -- skip reload, keep current state
+
+    pre_reload = dict(universe)
+    if mtime != last_universe_mtime:
+        last_universe_mtime = mtime
+        universe = load_universe(config.UNIVERSE_CONFIG_PATH)
+
+    newly_active_a, newly_disabled_a = diff_universe(pre_reconcile, universe)
+    newly_active_b, newly_disabled_b = diff_universe(pre_reload, universe)
+    newly_active = set(newly_active_a) | set(newly_active_b)
+    newly_disabled = (set(newly_disabled_a) | set(newly_disabled_b)) - newly_active
+
+    for symbol in newly_active:
+        subscribe_symbol(symbol, bar_lists, contracts)
+    for symbol in newly_disabled:
+        unsubscribe_symbol(symbol, bar_lists, contracts)
+
+
 def flatten_all(contracts: dict) -> None:
     # NOTE: this places a market order to close each position but does not
     # explicitly cancel that position's resting protective order(s) (the
@@ -322,7 +471,7 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
         if not has_new_bar:
             return  # ignore intrabar ticks; only act on completed bars
 
-        apply_instrument_overrides(symbol)
+        _sync_universe(bar_lists, contracts)
 
         df = util.df(bars)
         if df is None or len(df) < max(config.MR_MA_PERIOD, config.TF_SLOW_MA_PERIOD, config.ADX_PERIOD) + 1:
@@ -367,6 +516,9 @@ def on_bar_update(symbol: str, contract, bar_lists: dict, contracts: dict):
 
         if signal is Signal.FLAT or has_position or pd_isna(atr_value):
             return
+
+        if universe.get(symbol) in ("pending_disable", "disabled"):
+            return  # new entries only -- exit paths above are never gated by universe status
 
         bar_date = df["date"].iloc[-1]
         bar_date = bar_date.date() if hasattr(bar_date, "date") else bar_date
@@ -413,6 +565,8 @@ def shutdown(*_args) -> None:
 
 
 def main() -> None:
+    global universe, last_universe_mtime
+
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
@@ -420,37 +574,22 @@ def main() -> None:
     logger.info("Connected to IBKR at %s:%s", config.IB_HOST, config.IB_PORT)
     logger.info("Tracking equity internally from config.ACCOUNT_EQUITY_USD=%s (not IBKR's reported account balance)",
                 config.ACCOUNT_EQUITY_USD)
+    logger.info("Strategy: %s, bracket exits=%s (stop_mode=%s)", config.STRATEGY_SET, config.USE_BRACKET_EXITS, config.STOP_LOSS_MODE)
 
-    for symbol in config.INSTRUMENTS:
-        logger.info("Instrument config for %s: %s", symbol, config.INSTRUMENT_CONFIG.get(symbol, "(uses global defaults)"))
+    universe = load_universe(config.UNIVERSE_CONFIG_PATH)
+    try:
+        last_universe_mtime = os.path.getmtime(config.UNIVERSE_CONFIG_PATH)
+    except OSError:
+        last_universe_mtime = 0.0
+    logger.info("Loaded universe from %s: %s", config.UNIVERSE_CONFIG_PATH, universe)
 
     bar_lists = {}
     contracts = {}
-    for symbol in config.INSTRUMENTS:
-        contract = Stock(symbol, "SMART", "USD")
-        ib.qualifyContracts(contract)
-        contracts[symbol] = contract
-
-        bars = ib.reqHistoricalData(
-            contract, endDateTime="", durationStr=config.HISTORICAL_DURATION,
-            barSizeSetting=config.BAR_SIZE, whatToShow="TRADES", useRTH=True,
-            keepUpToDate=True,
-        )
-        bar_lists[symbol] = bars
-        bars.updateEvent += on_bar_update(symbol, contract, bar_lists, contracts)
-        logger.info("Subscribed to live %s bars for %s", config.BAR_SIZE, symbol)
-
-        if config.TREND_FILTER_ENABLED:
-            daily_bars = ib.reqHistoricalData(
-                contract, endDateTime="", durationStr="2 Y",
-                barSizeSetting=config.TREND_FILTER_BAR_SIZE, whatToShow="TRADES", useRTH=True,
-                keepUpToDate=True,
-            )
-            daily_bars.updateEvent += on_daily_bar_update(symbol)
-            daily_df = util.df(daily_bars)
-            if daily_df is not None and len(daily_df) >= 2:
-                trend_maps[symbol] = build_trend_map(daily_df.set_index("date"))
-            logger.info("Subscribed to daily trend-filter bars for %s (%d-day SMA)", symbol, config.TREND_FILTER_SMA_PERIOD)
+    for symbol, status in universe.items():
+        if status != "active":
+            logger.info("Skipping %s at startup (status=%s)", symbol, status)
+            continue
+        subscribe_symbol(symbol, bar_lists, contracts)
 
     ib.run()
 

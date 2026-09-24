@@ -1,6 +1,9 @@
 # Plan: Unified Entry Strategy + Hot-Reloadable Symbol Universe
 
-**Status:** DRAFT — for review before any code changes land, especially bot/main.py (live).
+**Status:** IMPLEMENTED — 2026-09-24, branch `unified-strategy-universe`. See
+"Still open / to confirm at implementation time" at the bottom for what was
+found/decided during implementation, and CLAUDE.md's 2026-09-24 entry for
+the full summary.
 **Owner decision log:** see bottom.
 
 ## Goal
@@ -226,15 +229,86 @@ pending_disable ─────────────────────�
 
 ## Still open / to confirm at implementation time
 
-- Exact current value of `config.TAKE_PROFIT_RATIO` before this change
-  (verify against latest committed config.py, since the 5%-stop-test
-  commit may have left it at a different value than the vwap_donchian-era
-  default).
-- Whether `request_disable()`/an enable-a-new-symbol workflow needs a
-  small CLI wrapper (e.g. `python -m bot.universe_cli disable TSLA`) for
-  convenience, or hand-editing the JSON file directly is fine. Leaning
-  toward: ship hand-editable JSON now, add a CLI wrapper later only if
-  editing the file by hand proves annoying in practice.
-- `ib.cancelHistoricalData()` exact call signature / confirm it fully
-  detaches the `updateEvent` handler too (need to check ib_insync docs
-  at implementation time, not guess).
+- **`config.TAKE_PROFIT_RATIO` before this change: confirmed `2.0`** (the
+  vwap_donchian-era default -- the 5%-stop-test commit had left
+  `FIXED_STOP_LOSS_PCT` at `0.05` but had NOT touched `TAKE_PROFIT_RATIO`).
+  Changed to `3.0` as planned.
+- **CLI wrapper: not built.** Shipped hand-editable `config/universe.json`
+  only, per the plan's own leaning -- `request_disable()`/an enable
+  workflow can be added later if hand-editing proves annoying in practice.
+- **`ib.cancelHistoricalData()` confirmed against the installed ib_insync
+  0.9.86 source** (`ib.py`/`wrapper.py`): it calls
+  `self.client.cancelHistoricalData(bars.reqId)` (a plain non-blocking
+  socket send) then `self.wrapper.endSubscription(bars)`, which only pops
+  the wrapper's internal reqId bookkeeping (`_reqId2Contract`,
+  `reqId2Subscriber`) -- it does **NOT** detach the `updateEvent` listener
+  this bot attaches via `bars.updateEvent += ...`. `bot/main.py`'s
+  `unsubscribe_symbol()` therefore calls `bars.updateEvent.clear()`
+  explicitly (eventkit's `Event.clear()`) in addition to
+  `ib.cancelHistoricalData()`, for both the 15-min and daily trend-filter
+  bar lists.
+
+### Additional issues found during implementation (not anticipated by this plan)
+
+- **`backtest/engine.py` was NOT already decoupled from `bot/instrument_config.py`
+  as this plan claimed.** It has a module-level
+  `from bot.instrument_config import apply_instrument_overrides` and a
+  `use_instrument_config: bool = False` parameter on `run_backtest()` that
+  calls it. Deleting `bot/instrument_config.py` as planned would have
+  broken this import and crashed every backtest script transitively (they
+  all import `backtest.engine`). Confirmed via grep that
+  `use_instrument_config` is never passed `True` by any real call site
+  (`optimize.py`, `run_backtest.py`, every `validate_*.py` script) --  it
+  was dead code. Fixed by removing the import and the
+  `use_instrument_config` parameter/branch from `run_backtest()`; no
+  behavioral change to any existing backtest result, since the branch was
+  never exercised.
+- **Six more files read `config.INSTRUMENTS` directly and would have
+  crashed on import/argparse-setup once it was removed** (the plan's claim
+  that only `bot/main.py` reads `config.INSTRUMENTS`/`INSTRUMENT_CONFIG`
+  was incomplete): `backtest/optimize.py`, `backtest/run_backtest.py`,
+  `backtest/fetch_ibkr_data.py`, `backtest/generate_synthetic_data.py`,
+  `check_ibkr_connection.py` (all used it as an argparse `--symbols`
+  default or a loop target), and `research/momentum_rotation.py`. None of
+  these are covered by the "Do NOT touch" list (`backtest/engine.py`,
+  `backtest/data.py`, `backtest/validate_*.py`), which held up correctly.
+  Fixed by replacing each `config.INSTRUMENTS` reference with a literal
+  `["SPY", "QQQ", "IWM"]` (identical value `config.INSTRUMENTS` held
+  before removal) -- no behavior change, just removes the dependency on
+  the now-deleted config attribute.
+- **A live-crash bug in this plan's own mid-run subscribe design**:
+  `subscribe_symbol()`, as specified, calls `ib.qualifyContracts()` /
+  `ib.reqHistoricalData()` -- both BLOCKING ib_insync calls that go through
+  `util.run()` -> `loop.run_until_complete()`. That's safe at startup
+  (before `ib.run()` starts pumping the event loop) but calling a blocking
+  ib_insync method from inside a callback the loop is already running
+  inside crashes with `RuntimeError: This event loop is already running`
+  -- the exact same failure class as the 2026-09-23 entry/exit-fill bug
+  this project already hit and fixed once (see CLAUDE.md, `_watch_trade`).
+  Since `_sync_universe()` calls `subscribe_symbol()` from inside
+  `on_bar_update()`'s handler (i.e. while `ib.run()`'s loop IS running),
+  this would have crashed the first time a symbol went active mid-run.
+  Fixed by giving `subscribe_symbol()` dual dispatch: if
+  `util.getLoop().is_running()` (the mid-run case), it schedules an async
+  version (`ib.qualifyContractsAsync()` / `ib.reqHistoricalDataAsync()`)
+  via `asyncio.ensure_future()` (fire-and-forget, non-blocking, the same
+  event-driven pattern `_watch_trade`/`_watch_bracket` already use for
+  this problem); otherwise (startup, loop not running yet) it falls back
+  to a plain blocking `ib.run(coro)`, identical to the original startup
+  behavior. `unsubscribe_symbol()`'s `ib.cancelHistoricalData()` needed no
+  equivalent fix -- confirmed it's a plain non-blocking socket send, safe
+  to call from a running-loop callback as-is.
+- **`reconcile_pending_disables()`, called only where step 4 of this plan
+  literally placed it (inside the mtime-changed branch), would not
+  actually satisfy this plan's own Goal #3** ("auto-flips to disabled the
+  instant it goes flat"): a `pending_disable` symbol's position closing is
+  a portfolio-state event, not a file-change event, so gating the
+  reconcile check behind "did config/universe.json's mtime change" means a
+  symbol could sit in `pending_disable` indefinitely after going flat if
+  nobody happens to touch the file again. Implemented `_sync_universe()`
+  to run `reconcile_pending_disables()` every bar unconditionally (cheap:
+  a dict comprehension, no-op if nothing is `pending_disable`), while
+  still gating the full `config/universe.json` disk reload behind the
+  mtime check (the "check every bar" cadence decision this plan locked
+  in) -- this satisfies both the locked-in reload cadence and the
+  locked-in "auto-flips ... instant it goes flat" behavior.

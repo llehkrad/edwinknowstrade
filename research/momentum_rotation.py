@@ -123,13 +123,13 @@ def _close(cash, symbol, qty, entry_price, entry_commission, exit_price_raw, fil
 
 
 def main() -> None:
-    full = load_universe(config.INSTRUMENTS, config.BAR_SIZE)
+    full = load_universe(["SPY", "QQQ", "IWM"], config.BAR_SIZE)
     in_sample = {s: df[df.index <= pd.Timestamp("2026-03-17", tz=df.index.tz)] for s, df in full.items()}
     out_sample = {s: df[df.index >= pd.Timestamp(SPLIT_DATE, tz=df.index.tz)] for s, df in full.items()}
 
     print(f"In-sample bars: {len(in_sample['SPY'])}, out-of-sample bars: {len(out_sample['SPY'])}")
 
-    for symbol in config.INSTRUMENTS:
+    for symbol in ["SPY", "QQQ", "IWM"]:
         bh = out_sample[symbol]["close"].iloc[-1] / out_sample[symbol]["close"].iloc[0] - 1
         print(f"  {symbol} buy-and-hold benchmark over out-of-sample period: {bh:.2%}")
 

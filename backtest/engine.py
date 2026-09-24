@@ -17,7 +17,6 @@ import config
 from backtest import costs
 from bot import risk_manager
 from bot.indicators import atr
-from bot.instrument_config import apply_instrument_overrides
 from bot.portfolio import Portfolio, Position
 from bot.regime import Regime, current_regime
 from bot.signal import Signal
@@ -62,7 +61,7 @@ def _min_lookback() -> int:
 
 def run_backtest(
     data: Dict[str, pd.DataFrame], starting_equity: float = None, daily_data: Dict[str, pd.DataFrame] = None,
-    use_instrument_config: bool = False, use_bracket_exits: bool = False,
+    use_bracket_exits: bool = False,
 ) -> BacktestResult:
     """
     data: {symbol: DataFrame} indexed by timestamp with open/high/low/close/volume
@@ -71,11 +70,6 @@ def run_backtest(
     for the long-term trend filter (bot/trend_filter.py). If omitted, the
     filter is skipped regardless of config.TREND_FILTER_ENABLED, since there's
     no daily data to gate against.
-    use_instrument_config: if True, applies config.INSTRUMENT_CONFIG overrides
-    per symbol (bot/instrument_config.py) -- the same per-instrument strategy/
-    parameter selection bot/main.py uses live. Default False so grid search
-    (backtest/optimize.py) and manual single-shared-config backtests keep
-    sweeping one parameter set across all instruments uniformly, unaffected.
     use_bracket_exits: if True, mirrors config.USE_BRACKET_EXITS live: a
     filled entry gets a stop-loss AND a take-profit level (ATR-based, see
     risk_manager.stop_price_for/take_profit_price_for), and the strategy's
@@ -107,9 +101,6 @@ def run_backtest(
         for symbol, df in data.items():
             if ts not in df.index:
                 continue
-
-            if use_instrument_config:
-                apply_instrument_overrides(symbol)
 
             idx = df.index.get_loc(ts)
             window = df.iloc[: idx + 1]

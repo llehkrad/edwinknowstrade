@@ -22,7 +22,7 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "backtest_results")
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--symbols", nargs="+", default=config.INSTRUMENTS)
+    parser.add_argument("--symbols", nargs="+", default=["SPY", "QQQ", "IWM"])
     parser.add_argument("--bar-size", default=config.BAR_SIZE)
     parser.add_argument("--start", default=None)
     parser.add_argument("--end", default=None)

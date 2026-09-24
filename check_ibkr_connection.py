@@ -35,7 +35,7 @@ def main() -> None:
 
     print("\nMarket data status per instrument:")
     any_not_live = False
-    for symbol in config.INSTRUMENTS:
+    for symbol in ["SPY", "QQQ", "IWM"]:
         contract = Stock(symbol, "SMART", "USD")
         ib.qualifyContracts(contract)
         ticker = ib.reqMktData(contract, "", False, False)

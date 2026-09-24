@@ -1,5 +1,107 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-24, branch `unified-strategy-universe`) — unified vwap_reversion_only strategy + standardized bracket exit + hot-reloadable symbol universe, implemented per plan doc; not yet observed live
+
+Implemented `research/unified_strategy_universe_plan_2026-09-24.md` in full
+(now marked IMPLEMENTED, with an "Additional issues found during
+implementation" addendum -- see that doc for details). Two changes, per
+operator decision:
+
+1. **One standardized entry strategy + exit for every symbol, replacing
+   per-symbol tuning.** `config.STRATEGY_SET` is now permanently
+   `"vwap_reversion_only"` (was per-symbol via the now-deleted
+   `config.INSTRUMENT_CONFIG`/`bot/instrument_config.py`) -- chosen because
+   it was the only strategy with positive breadth across 4/5 symbols
+   (SPY/IWM/QQQ/TSLA) in the fixed-pct SL/TP sweep. Exit is now permanently
+   `config.USE_BRACKET_EXITS = True`, `STOP_LOSS_MODE = "fixed_pct"`,
+   `FIXED_STOP_LOSS_PCT = 0.01` (1.0%), `TAKE_PROFIT_RATIO = 3.0` (was 2.0)
+   -- a 1.0%/3.0% (3:1) bracket, chosen over the also-viable 1.5%/3.0%(2:1)
+   combo for its higher trade count (avg 25.9 vs 23.1 per cell) at a
+   near-identical aggregate profit factor. No strategy MERGE was built --
+   deferred to a future backtest, not guessed at here.
+2. **Symbol universe moved out of static `config.py` into hot-reloadable
+   `config/universe.json`** (`{"SYMBOL": {"status": "active"|"pending_disable"|
+   "disabled"}}`, currently SPY/QQQ/IWM/TSLA/GOOGL all `"active"`), via new
+   `bot/universe.py` (`load_universe`, `request_disable`,
+   `reconcile_pending_disables`, `diff_universe` -- stdlib-only, no
+   ib_insync dependency, so it's independently unit-testable). `bot/main.py`
+   reads this file for its startup subscribe loop instead of
+   `config.INSTRUMENTS` (now removed), and checks the file's mtime every
+   completed bar (`_sync_universe()`, called from `on_bar_update()`'s
+   handler) to pick up manual edits within one bar -- new symbols get
+   subscribed, `"disabled"` symbols get unsubscribed, with no restart
+   needed. Disabling a symbol with an open position marks it
+   `"pending_disable"` (keeps trading normally, both entries and exits)
+   and it auto-flips to `"disabled"` the instant it goes flat, no forced
+   flatten. New `subscribe_symbol()`/`unsubscribe_symbol()` helpers in
+   `bot/main.py` extract what used to be main()'s inline startup loop so
+   they're callable again mid-run. A symbol with status `"pending_disable"`
+   or `"disabled"` is skipped for NEW entries only -- every exit path
+   (bracket fill, stop, strategy EXIT signal) is completely unaffected by
+   status, so a pending-disable position rides out to flat exactly as if
+   still active.
+
+**Found and fixed three things this plan doc got wrong, beyond its own
+scope**, all now documented in the plan doc's "Additional issues found
+during implementation" section:
+- `backtest/engine.py` was NOT already decoupled from the per-symbol
+  config system as claimed -- it had a dead `use_instrument_config`
+  parameter that imported `bot.instrument_config` at module level.
+  Deleting that module (as planned) would have broken the import and
+  crashed every backtest script transitively. Confirmed via grep that no
+  real call site ever passed `use_instrument_config=True`, so removed the
+  dead parameter/import with no behavioral change to any existing result.
+- Six more files read `config.INSTRUMENTS` directly and would have crashed
+  on import/argparse setup once it was removed (`backtest/optimize.py`,
+  `backtest/run_backtest.py`, `backtest/fetch_ibkr_data.py`,
+  `backtest/generate_synthetic_data.py`, `check_ibkr_connection.py`,
+  `research/momentum_rotation.py`) -- none covered by the "don't touch"
+  list (`backtest/engine.py`, `backtest/data.py`, `backtest/validate_*.py`
+  scripts, which correctly didn't need changes). Fixed by replacing each
+  with a literal `["SPY", "QQQ", "IWM"]` (the value `config.INSTRUMENTS`
+  held before removal) -- no behavior change.
+- **A real live-crash bug in the plan's own mid-run subscribe design**:
+  calling the blocking `ib.qualifyContracts()`/`ib.reqHistoricalData()`
+  (both go through `util.run()` -> `loop.run_until_complete()`) from
+  inside `on_bar_update()`'s handler -- i.e. while `ib.run()`'s loop is
+  already running -- would crash with `RuntimeError: This event loop is
+  already running`, the exact same failure class as the 2026-09-23
+  entry/exit-fill bug documented below. Fixed by having `subscribe_symbol()`
+  dispatch to a non-blocking async path (`asyncio.ensure_future()` +
+  `ib.qualifyContractsAsync()`/`ib.reqHistoricalDataAsync()`, the same
+  event-driven pattern `_watch_trade`/`_watch_bracket` already established
+  for this exact problem) whenever `util.getLoop().is_running()`, falling
+  back to a plain blocking call only at startup (before `ib.run()` starts
+  pumping). Also found (and worked around, not just noted) that the plan's
+  literal step-4 wording would have gated `reconcile_pending_disables()`
+  behind the file's mtime check, silently breaking its own "auto-flips ...
+  the instant it goes flat" goal for a symbol whose position closes
+  without anyone touching the file again -- `_sync_universe()` now runs
+  the reconcile every bar unconditionally, independent of the mtime-gated
+  file reload.
+
+**Testing done**: this Windows dev environment cannot import `ib_insync` at
+all (a pre-existing limitation -- `eventkit` calls
+`asyncio.get_event_loop()` at import time, which Python 3.14 no longer
+implicitly creates; see `ib_compat.py`), so `bot/main.py` itself could not
+be run/imported here, live or otherwise -- same constraint noted throughout
+this file's history. Per that constraint: `bot/universe.py` was written
+with zero `ib_insync` dependency specifically so it's independently
+testable -- new `tests/test_universe.py` (stdlib `unittest`, 15 cases:
+valid/malformed/missing-file loads and fallback-to-last-known-good,
+`request_disable` under both open-position and flat, `reconcile_pending_disables`
+flipping and not-flipping, `diff_universe` across several transition
+shapes) all pass (`python -m unittest tests.test_universe -v`). Also
+re-ran `python -m backtest.validate_fixed_pct_exits --symbols SPY
+--strategy vwap_reversion_only` and `python -m backtest.run_backtest
+--symbols SPY QQQ IWM` end-to-end against real cached historical data to
+confirm `config.py`'s changes (removed `INSTRUMENTS`/`INSTRUMENT_CONFIG`,
+new `STRATEGY_SET`/bracket-exit defaults) didn't break the backtest
+pipeline -- both completed cleanly. **Not yet exercised**: `bot/main.py`'s
+own live subscribe/unsubscribe/reconcile wiring against a real IBKR
+connection -- treat as unverified-live, same as every other live-only code
+path in this project's history, until actually observed running.
+
 ## Current status (2026-09-24, branch `bracket-tp-sl`) — bracket-order exits (ATR-based and fixed-%) tested; no validated edge yet, but a real quality signal (win rate) identified
 
 Per operator request, redesigned exit handling from "strategy's own signal

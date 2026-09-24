@@ -84,7 +84,7 @@ def run_grid_search(data, strategy_set: str, metric: str = "total_return_pct", m
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--symbols", nargs="+", default=config.INSTRUMENTS)
+    parser.add_argument("--symbols", nargs="+", default=["SPY", "QQQ", "IWM"])
     parser.add_argument("--strategy-set", default="sma_zscore", choices=list(GRIDS))
     parser.add_argument("--metric", default="total_return_pct",
                          choices=["total_return_pct", "sharpe_ratio", "cagr", "profit_factor"])
