@@ -76,7 +76,7 @@ def mark_to_market_equity(bar_lists) -> float:
     return cash + unrealized
 
 
-def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
+def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0, cancel_grace: float = 3.0) -> None:
     """
     Non-blocking replacement for the old ib.sleep()-polling wait-for-fill loop.
 
@@ -92,7 +92,7 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
     including fills and cancels) and invokes on_result(avg_price, commission)
     exactly once, when IBKR reports the order as actually done.
 
-    NOTE (2026-09-24 incident, see CLAUDE.md): this used to also race a
+    NOTE (2026-09-24 incident #1, see CLAUDE.md): this used to also race a
     `timeout` seconds call_later against statusEvent and give up (calling
     on_result with a 0.0 "not filled" price and detaching the listener) if
     the order hadn't resolved by then. Live SPY entry sat in PendingSubmit
@@ -105,11 +105,28 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
     while the bot's own state showed it as flat. `timeout` now only controls
     a one-time diagnostic log (does NOT give up or detach the listener) --
     the listener stays attached until IBKR reports a genuinely terminal
-    status (Filled, Cancelled, ApiCancelled, Inactive -- whatever
-    trade.isDone() considers done), however long that takes. An order that
-    never resolves at all (event truly lost, not just slow) will still hang
-    here indefinitely -- a known tradeoff, preferred over ever again
-    silently abandoning a fill that could still land.
+    status, however long that takes.
+
+    NOTE (2026-09-24 incident #2, see CLAUDE.md): a SECOND, independent
+    finality-assumed-too-early bug hit the same night. Two GOOGL SELL
+    market orders each got IBKR's `Error 10349: Order TIF was set to DAY
+    based on order preset` (the order omits an explicit TIF, so IBKR
+    substitutes DAY) reported via a `Cancelled` orderStatus transition --
+    but the SAME order (same orderId/permId) then continued and filled for
+    real seconds later. `trade.isDone()` treats `Cancelled` as unconditionally
+    terminal (ib_insync's own `OrderStatus.DoneStates`), so `on_status`
+    fired `finish()` on the spurious Cancelled, detached the listener, and
+    both fills were invisible to the bot -- two SELL signals each logged
+    "did not fill" while actually filling anyway, stacking into an
+    untracked, unprotected 10-share short with the bot believing it had
+    placed zero GOOGL positions. Fixed: `Cancelled`/`ApiCancelled` (but NOT
+    `Filled`, which IBKR never reneges on) now get a `cancel_grace` second
+    grace period before being treated as final -- re-checks trade.isDone()
+    and trade.orderStatus.status after the grace window; if the order
+    reports Filled or is still genuinely done, finishes normally; if it has
+    silently continued (no longer in a done state, or now shows a fill),
+    logs/alerts loudly and keeps watching via on_status instead of ever
+    finishing on the stale Cancelled snapshot.
     """
     done = False
     alerted_stale = False
@@ -135,8 +152,38 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
             if fill.commissionReport is not None
         )
 
+    def confirm_cancel_after_grace() -> None:
+        # Re-check the trade's CURRENT status after the grace window --
+        # IBKR's Cancelled report for this order may have been a spurious
+        # snapshot along the way to a real fill (see incident #2 above),
+        # not IBKR's own live-updated trade.orderStatus.
+        if done:
+            return
+        if trade.orderStatus.status == "Filled" or not trade.isDone():
+            logger.warning(
+                "Order for %s reported Cancelled but is actually %s %.0fs later -- "
+                "the earlier Cancelled was spurious (see 2026-09-24 incident #2 in "
+                "CLAUDE.md). Continuing to watch instead of treating it as dead.",
+                symbol, trade.orderStatus.status, cancel_grace,
+            )
+            send_slack_alert(
+                f":warning: {symbol} order showed Cancelled but is actually "
+                f"{trade.orderStatus.status} -- bot is still watching it, not "
+                f"treating it as dead. Verify in TWS."
+            )
+            if trade.orderStatus.status == "Filled":
+                finish(trade.orderStatus.avgFillPrice or 0.0, commission_total())
+            return
+        finish(trade.orderStatus.avgFillPrice or 0.0, commission_total())
+
     def on_status(t) -> None:
         if not t.isDone():
+            return
+        if t.orderStatus.status in ("Cancelled", "ApiCancelled"):
+            # Don't trust a Cancelled/ApiCancelled snapshot immediately --
+            # give the order a short grace window in case IBKR is mid-way
+            # through auto-correcting and resubmitting it (incident #2).
+            util.getLoop().call_later(cancel_grace, confirm_cancel_after_grace)
             return
         finish(t.orderStatus.avgFillPrice or 0.0, commission_total())
 
@@ -148,7 +195,7 @@ def _watch_trade(trade, symbol: str, on_result, timeout: float = 15.0) -> None:
         logger.warning(
             "Order for %s still not resolved after %.0fs (status=%s) -- IBKR/TWS "
             "order acknowledgment can lag well past this; continuing to wait "
-            "rather than giving up (see 2026-09-24 incident in CLAUDE.md, where "
+            "rather than giving up (see 2026-09-24 incident #1 in CLAUDE.md, where "
             "abandoning here silently missed a real fill 19 minutes later). Will "
             "keep watching until IBKR reports the order Filled or truly Cancelled.",
             symbol, timeout, trade.orderStatus.status,

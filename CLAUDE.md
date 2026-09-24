@@ -1,6 +1,38 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (2026-09-24, late night) — first live entry under the new architecture exposed THREE real bugs: a silently-dropped late fill, an unrounded stop price, and no startup position reconciliation; all three fixed and verified live
+## Current status (2026-09-25, early morning) — FOUR real live bugs found and fixed tonight under the new architecture. All four verified live, not just reasoned about.
+
+### Incident #4: spurious `Cancelled` status treated as final (GOOGL, ~00:15-00:40)
+Two GOOGL SELL market orders each got `Error 10349: Order TIF was set to DAY
+based on order preset` (order omitted an explicit TIF; IBKR silently
+substitutes DAY) reported via a transient `Cancelled` orderStatus
+transition. `trade.isDone()` treats `Cancelled` as unconditionally terminal
+(ib_insync's own `OrderStatus.DoneStates`), so `_watch_trade`'s `on_status`
+fired `finish()` immediately and detached its listener — but the SAME order
+(same orderId/permId) then continued and filled for real seconds later
+under the hood. Both GOOGL sell signals logged "did not fill" while
+actually filling anyway, stacking into an **untracked, unprotected 10-share
+short position** the bot believed didn't exist. Sat live for ~25 minutes
+before the operator manually closed it in TWS (-$14.54 realized) — the bot
+never placed a stop/take-profit for it and had no idea it existed.
+
+**Fix**: `_watch_trade` now gives `Cancelled`/`ApiCancelled` statuses (never
+`Filled`, which IBKR never reneges on) a `cancel_grace=3.0`s window before
+treating them as final. After the grace period it re-checks the trade's
+*current* status — if it actually filled or is still alive, the bot keeps
+watching/reports the real fill instead of the stale snapshot; only a
+genuinely-still-dead order is reported as not filled. New test suite
+`tests/test_watch_trade.py` (4 tests, using ib_insync's real Trade/
+OrderStatus/Fill dataclasses + asyncio, no live connection needed)
+specifically reproduces this exact scenario (Cancelled→Filled) plus the
+genuinely-dead-order case, ApiCancelled, and a plain-fill regression check.
+
+This is the same underlying flaw as incident #1 below (finality assumed too
+early) but via a different trigger — a lesson for any future fill-watching
+logic: **no ib_insync orderStatus transition should be treated as
+permanently final without confirming the order didn't silently continue.**
+
+### Prior incidents tonight (SPY):
 
 **What happened:** tonight's first SPY entry under the newly-merged unified
 strategy actually filled, but the bot never knew it. Root cause chain,
