@@ -1,0 +1,652 @@
+
+======================================================================
+SPY
+======================================================================
+Full range: 2025-09-17 09:30:00-04:00 -> 2026-09-16 10:45:00-04:00 (6482 bars)
+
+--- SPY / mean_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [5/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [6/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [7/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [8/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [9/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [10/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 1.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #3 {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+
+--- SPY / vwap_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/4] {'VWAP_ENTRY_ATR_MULT': 1.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/4] {'VWAP_ENTRY_ATR_MULT': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/4] {'VWAP_ENTRY_ATR_MULT': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/4] {'VWAP_ENTRY_ATR_MULT': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'VWAP_ENTRY_ATR_MULT': 1.0}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'VWAP_ENTRY_ATR_MULT': 2.0}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #3 {'VWAP_ENTRY_ATR_MULT': 2.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+
+--- SPY / orb_only (fixed 5% SL / 15% TP) ---
+  [1/3] {'ORB_RANGE_BARS': 1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/3] {'ORB_RANGE_BARS': 2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/3] {'ORB_RANGE_BARS': 4} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'ORB_RANGE_BARS': 1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'ORB_RANGE_BARS': 2}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #3 {'ORB_RANGE_BARS': 4}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+
+--- SPY / rsi_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [5/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [6/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [7/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [8/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [9/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [10/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [13/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [14/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [15/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [16/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [17/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [18/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [19/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [20/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [21/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [22/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [23/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [24/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [25/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [26/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [27/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #3 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=-0.03% pf=0.0 trades=0 win_rate=0.00%
+
+--- SPY / bb_squeeze_only (fixed 5% SL / 15% TP) ---
+  [1/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [5/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [6/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [7/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [8/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [9/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [10/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [13/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [14/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [15/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [16/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [17/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [18/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.03% pf=0.0 trades=0 win_rate=0.00%
+  #3 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+
+======================================================================
+QQQ
+======================================================================
+Full range: 2025-09-17 09:30:00-04:00 -> 2026-09-16 10:45:00-04:00 (6482 bars)
+
+--- QQQ / mean_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [5/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [6/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [7/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [8/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [9/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [10/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.88% pf=0.7025700647107564 trades=5 win_rate=20.00%
+  #2 {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #3 {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.88% pf=0.7025394090544728 trades=5 win_rate=20.00%
+
+--- QQQ / vwap_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/4] {'VWAP_ENTRY_ATR_MULT': 1.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/4] {'VWAP_ENTRY_ATR_MULT': 1.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/4] {'VWAP_ENTRY_ATR_MULT': 2.0} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/4] {'VWAP_ENTRY_ATR_MULT': 2.5} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'VWAP_ENTRY_ATR_MULT': 1.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.88% pf=0.7025365478027666 trades=5 win_rate=20.00%
+  #2 {'VWAP_ENTRY_ATR_MULT': 2.0}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.34% pf=0.9329598134908136 trades=4 win_rate=25.00%
+  #3 {'VWAP_ENTRY_ATR_MULT': 2.5}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.34% pf=0.9329700855369576 trades=4 win_rate=25.00%
+
+--- QQQ / orb_only (fixed 5% SL / 15% TP) ---
+  [1/3] {'ORB_RANGE_BARS': 1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/3] {'ORB_RANGE_BARS': 2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/3] {'ORB_RANGE_BARS': 4} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'ORB_RANGE_BARS': 1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.34% pf=0.932964819856622 trades=4 win_rate=25.00%
+  #2 {'ORB_RANGE_BARS': 2}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.34% pf=0.932964819856622 trades=4 win_rate=25.00%
+  #3 {'ORB_RANGE_BARS': 4}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.34% pf=0.932964819856622 trades=4 win_rate=25.00%
+
+--- QQQ / rsi_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [5/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [6/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [7/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [8/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [9/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [10/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [13/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [14/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [15/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [16/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [17/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [18/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [19/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [20/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [21/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [22/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [23/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [24/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [25/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [26/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [27/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=-0.03% pf=0.0 trades=0 win_rate=0.00%
+  #3 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+
+--- QQQ / bb_squeeze_only (fixed 5% SL / 15% TP) ---
+  [1/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [2/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [3/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [4/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [5/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [6/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [7/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [8/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [9/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [10/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [13/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [14/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [15/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [16/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [17/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [18/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=-0.34% pf=0.9329641882542803 trades=4 win_rate=25.00%
+  #2 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=1.22% pf=1.3986866500445212 trades=3 win_rate=33.33%
+  #3 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-0.03% pf=0.0
+      out-sample: return=1.23% pf=1.3910729882362096 trades=3 win_rate=33.33%
+
+======================================================================
+IWM
+======================================================================
+Full range: 2025-09-17 09:30:00-04:00 -> 2026-09-16 10:45:00-04:00 (6482 bars)
+
+--- IWM / mean_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [2/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [3/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [4/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [5/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [6/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [7/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [8/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [9/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [10/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [11/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [12/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  #1 {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-1.57% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-1.57% pf=0.0
+      out-sample: return=2.81% pf=2.8360170971101493 trades=2 win_rate=50.00%
+  #3 {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.0}
+      in-sample:  return=-1.57% pf=0.0
+      out-sample: return=2.81% pf=2.836037286597562 trades=2 win_rate=50.00%
+
+--- IWM / vwap_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/4] {'VWAP_ENTRY_ATR_MULT': 1.0} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [2/4] {'VWAP_ENTRY_ATR_MULT': 1.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [3/4] {'VWAP_ENTRY_ATR_MULT': 2.0} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [4/4] {'VWAP_ENTRY_ATR_MULT': 2.5} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  #1 {'VWAP_ENTRY_ATR_MULT': 1.0}
+      in-sample:  return=-3.09% pf=0.0
+      out-sample: return=2.81% pf=2.836032901069336 trades=2 win_rate=50.00%
+  #2 {'VWAP_ENTRY_ATR_MULT': 2.0}
+      in-sample:  return=-3.09% pf=0.0
+      out-sample: return=2.81% pf=2.8360698687814065 trades=2 win_rate=50.00%
+  #3 {'VWAP_ENTRY_ATR_MULT': 1.5}
+      in-sample:  return=-3.09% pf=0.0
+      out-sample: return=2.81% pf=2.8360038500938334 trades=2 win_rate=50.00%
+
+--- IWM / orb_only (fixed 5% SL / 15% TP) ---
+  [1/3] {'ORB_RANGE_BARS': 1} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [2/3] {'ORB_RANGE_BARS': 2} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [3/3] {'ORB_RANGE_BARS': 4} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  #1 {'ORB_RANGE_BARS': 1}
+      in-sample:  return=-3.09% pf=0.0
+      out-sample: return=1.22% pf=1.3986809168096521 trades=3 win_rate=33.33%
+  #2 {'ORB_RANGE_BARS': 2}
+      in-sample:  return=-3.09% pf=0.0
+      out-sample: return=1.22% pf=1.39868558888062 trades=3 win_rate=33.33%
+  #3 {'ORB_RANGE_BARS': 4}
+      in-sample:  return=-3.09% pf=0.0
+      out-sample: return=1.22% pf=1.39868558888062 trades=3 win_rate=33.33%
+
+--- IWM / rsi_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [2/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [3/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [4/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [5/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [6/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [7/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [8/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [9/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [10/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [11/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [12/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [13/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [14/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [15/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [16/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [17/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [18/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [19/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [20/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [21/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [22/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [23/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [24/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [25/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [26/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  [27/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0003 pf=0.0 trades=0 win_rate=0.00%
+  #1 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=-1.55% pf=0.0 trades=1 win_rate=0.00%
+  #2 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=0.00% pf=0.0 trades=0 win_rate=0.00%
+  #3 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80}
+      in-sample:  return=0.00% pf=0.0
+      out-sample: return=0.00% pf=0.0 trades=0 win_rate=0.00%
+
+--- IWM / bb_squeeze_only (fixed 5% SL / 15% TP) ---
+  [1/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [2/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [3/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [4/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [5/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [6/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [7/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [8/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [9/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [10/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [11/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [12/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0309 pf=0.0 trades=2 win_rate=0.00%
+  [13/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [14/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [15/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [16/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [17/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  [18/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0157 pf=0.0 trades=1 win_rate=0.00%
+  #1 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-1.57% pf=0.0
+      out-sample: return=-0.03% pf=0.0 trades=0 win_rate=0.00%
+  #2 {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-1.57% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+  #3 {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2}
+      in-sample:  return=-1.57% pf=0.0
+      out-sample: return=-1.57% pf=0.0 trades=1 win_rate=0.00%
+
+======================================================================
+TSLA
+======================================================================
+Full range: 2025-09-23 09:30:00-04:00 -> 2026-09-22 15:45:00-04:00 (6502 bars)
+
+--- TSLA / mean_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0189 pf=0.6917744861818046 trades=5 win_rate=20.00%
+  [2/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0189 pf=0.6917748747931618 trades=5 win_rate=20.00%
+  [3/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0035 pf=0.9300026278670929 trades=4 win_rate=25.00%
+  [4/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0341 pf=0.5488806787522221 trades=6 win_rate=16.67%
+  [5/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0189 pf=0.6917718419242039 trades=5 win_rate=20.00%
+  [6/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0032 pf=0.9299849578255552 trades=4 win_rate=25.00%
+  [7/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0341 pf=0.548878304494715 trades=6 win_rate=16.67%
+  [8/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0189 pf=0.6917719160223899 trades=5 win_rate=20.00%
+  [9/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0186 pf=0.69177408727876 trades=5 win_rate=20.00%
+  [10/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=-0.0186 pf=0.6917860040815915 trades=5 win_rate=20.00%
+  [11/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=-0.0186 pf=0.6917846530082824 trades=5 win_rate=20.00%
+  [12/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=-0.0186 pf=0.6917880440269193 trades=5 win_rate=20.00%
+  #1 {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-0.32% pf=0.9299849578255552
+      out-sample: return=-10.63% pf=0.28225939711422365 trades=11 win_rate=9.09%
+  #2 {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-0.35% pf=0.9300026278670929
+      out-sample: return=-7.82% pf=0.34905472418983463 trades=9 win_rate=11.11%
+  #3 {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5}
+      in-sample:  return=-1.86% pf=0.6917880440269193
+      out-sample: return=-3.40% pf=0.5610599498272975 trades=6 win_rate=16.67%
+
+--- TSLA / vwap_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/4] {'VWAP_ENTRY_ATR_MULT': 1.0} -> total_return_pct=-0.0607 pf=0.0 trades=4 win_rate=0.00%
+  [2/4] {'VWAP_ENTRY_ATR_MULT': 1.5} -> total_return_pct=-0.0607 pf=0.0 trades=4 win_rate=0.00%
+  [3/4] {'VWAP_ENTRY_ATR_MULT': 2.0} -> total_return_pct=-0.0753 pf=0.0 trades=5 win_rate=0.00%
+  [4/4] {'VWAP_ENTRY_ATR_MULT': 2.5} -> total_return_pct=-0.0459 pf=0.0 trades=3 win_rate=0.00%
+  #1 {'VWAP_ENTRY_ATR_MULT': 2.5}
+      in-sample:  return=-4.59% pf=0.0
+      out-sample: return=-0.66% pf=0.9321910546154952 trades=8 win_rate=25.00%
+  #2 {'VWAP_ENTRY_ATR_MULT': 1.5}
+      in-sample:  return=-6.07% pf=0.0
+      out-sample: return=-5.20% pf=0.622882433496607 trades=11 win_rate=18.18%
+  #3 {'VWAP_ENTRY_ATR_MULT': 1.0}
+      in-sample:  return=-6.07% pf=0.0
+      out-sample: return=-7.82% pf=0.3490578129485357 trades=9 win_rate=11.11%
+
+--- TSLA / orb_only (fixed 5% SL / 15% TP) ---
+  [1/3] {'ORB_RANGE_BARS': 1} -> total_return_pct=-0.1040 pf=0.0 trades=8 win_rate=0.00%
+  [2/3] {'ORB_RANGE_BARS': 2} -> total_return_pct=-0.1040 pf=0.0 trades=8 win_rate=0.00%
+  [3/3] {'ORB_RANGE_BARS': 4} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  #1 {'ORB_RANGE_BARS': 4}
+      in-sample:  return=-10.35% pf=0.0
+      out-sample: return=-10.35% pf=0.0 trades=7 win_rate=0.00%
+  #2 {'ORB_RANGE_BARS': 2}
+      in-sample:  return=-10.40% pf=0.0
+      out-sample: return=-10.35% pf=0.0 trades=7 win_rate=0.00%
+  #3 {'ORB_RANGE_BARS': 1}
+      in-sample:  return=-10.40% pf=0.0
+      out-sample: return=-10.35% pf=0.0 trades=7 win_rate=0.00%
+
+--- TSLA / rsi_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0035 pf=0.9299781113556987 trades=4 win_rate=25.00%
+  [2/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0035 pf=0.9299781113556987 trades=4 win_rate=25.00%
+  [3/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0035 pf=0.9300106193978465 trades=4 win_rate=25.00%
+  [4/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0341 pf=0.5488809815974031 trades=6 win_rate=16.67%
+  [5/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0753 pf=0.0 trades=5 win_rate=0.00%
+  [6/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0189 pf=0.6917780038407363 trades=5 win_rate=20.00%
+  [7/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0341 pf=0.5488809815974031 trades=6 win_rate=16.67%
+  [8/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0753 pf=0.0 trades=5 win_rate=0.00%
+  [9/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0189 pf=0.6917780038407363 trades=5 win_rate=20.00%
+  [10/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0122 pf=1.4064717442439578 trades=3 win_rate=33.33%
+  [11/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0125 pf=1.4064636428916426 trades=3 win_rate=33.33%
+  [12/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0155 pf=0.0 trades=1 win_rate=0.00%
+  [13/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0035 pf=0.9300105530173884 trades=4 win_rate=25.00%
+  [14/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0032 pf=0.9300025044334456 trades=4 win_rate=25.00%
+  [15/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0307 pf=0.0 trades=2 win_rate=0.00%
+  [16/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0035 pf=0.9300106764521039 trades=4 win_rate=25.00%
+  [17/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0032 pf=0.9300026278670929 trades=4 win_rate=25.00%
+  [18/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0307 pf=0.0 trades=2 win_rate=0.00%
+  [19/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0284 pf=2.8360365476042757 trades=2 win_rate=50.00%
+  [20/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [21/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0000 pf=0.0 trades=0 win_rate=0.00%
+  [22/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0125 pf=1.406456622811174 trades=3 win_rate=33.33%
+  [23/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0155 pf=0.0 trades=1 win_rate=0.00%
+  [24/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0155 pf=0.0 trades=1 win_rate=0.00%
+  [25/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=-0.0032 pf=0.9299985721138447 trades=4 win_rate=25.00%
+  [26/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=-0.0307 pf=0.0 trades=2 win_rate=0.00%
+  [27/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=-0.0307 pf=0.0 trades=2 win_rate=0.00%
+  #1 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70}
+      in-sample:  return=2.84% pf=2.8360365476042757
+      out-sample: return=-4.57% pf=0.0 trades=3 win_rate=0.00%
+  #2 {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75}
+      in-sample:  return=1.25% pf=1.4064636428916426
+      out-sample: return=-3.38% pf=0.5570167839069518 trades=6 win_rate=16.67%
+  #3 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70}
+      in-sample:  return=1.25% pf=1.406456622811174
+      out-sample: return=-6.05% pf=0.0 trades=4 win_rate=0.00%
+
+--- TSLA / bb_squeeze_only (fixed 5% SL / 15% TP) ---
+  [1/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [2/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [3/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [4/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [5/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.1040 pf=0.0 trades=8 win_rate=0.00%
+  [6/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [7/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0753 pf=0.0 trades=5 win_rate=0.00%
+  [8/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0338 pf=0.5488800396838251 trades=6 win_rate=16.67%
+  [9/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0338 pf=0.5488800396838251 trades=6 win_rate=16.67%
+  [10/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [11/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [12/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [13/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0488 pf=0.45361708517994964 trades=7 win_rate=14.29%
+  [14/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.1040 pf=0.0 trades=8 win_rate=0.00%
+  [15/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.1035 pf=0.0 trades=7 win_rate=0.00%
+  [16/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0338 pf=0.5488701520078952 trades=6 win_rate=16.67%
+  [17/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=-0.0338 pf=0.5488701520078952 trades=6 win_rate=16.67%
+  [18/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=-0.0488 pf=0.4536164609441879 trades=7 win_rate=14.29%
+  #1 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2}
+      in-sample:  return=-3.38% pf=0.5488800396838251
+      out-sample: return=-4.90% pf=0.45765877637812985 trades=7 win_rate=14.29%
+  #2 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3}
+      in-sample:  return=-3.38% pf=0.5488800396838251
+      out-sample: return=-7.83% pf=0.3454251018176697 trades=9 win_rate=11.11%
+  #3 {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=-3.38% pf=0.5488701520078952
+      out-sample: return=-5.19% pf=0.6325891953576059 trades=11 win_rate=18.18%
+
+======================================================================
+GOOGL
+======================================================================
+Full range: 2025-09-23 09:30:00-04:00 -> 2026-09-22 15:45:00-04:00 (6502 bars)
+
+--- GOOGL / mean_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=0.0250 pf=1.3875605236363566 trades=6 win_rate=33.33%
+  [2/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=0.0574 pf=2.7261744858885453 trades=4 win_rate=50.00%
+  [3/12] {'MR_MA_PERIOD': 10, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=0.0411 pf=1.8426393887126125 trades=5 win_rate=40.00%
+  [4/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=0.0707 pf=2.0449613807576488 trades=7 win_rate=42.86%
+  [5/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=0.0875 pf=2.7156556733810073 trades=6 win_rate=50.00%
+  [6/12] {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=0.0574 pf=2.72618557222803 trades=4 win_rate=50.00%
+  [7/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=0.0707 pf=2.044966148611294 trades=7 win_rate=42.86%
+  [8/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=0.0875 pf=2.715647723966879 trades=6 win_rate=50.00%
+  [9/12] {'MR_MA_PERIOD': 30, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=0.0875 pf=2.71563020163306 trades=6 win_rate=50.00%
+  [10/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5} -> total_return_pct=0.0875 pf=2.715656758533295 trades=6 win_rate=50.00%
+  [11/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.0} -> total_return_pct=0.0875 pf=2.7156561280163576 trades=6 win_rate=50.00%
+  [12/12] {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5} -> total_return_pct=0.0875 pf=2.715643643328521 trades=6 win_rate=50.00%
+  #1 {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5}
+      in-sample:  return=8.75% pf=2.715656758533295
+      out-sample: return=-3.40% pf=0.5610631706215365 trades=6 win_rate=16.67%
+  #2 {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0}
+      in-sample:  return=8.75% pf=2.7156556733810073
+      out-sample: return=-3.68% pf=0.7005401287127516 trades=10 win_rate=20.00%
+  #3 {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.0}
+      in-sample:  return=8.75% pf=2.7156561280163576
+      out-sample: return=-3.68% pf=0.7005393354047992 trades=10 win_rate=20.00%
+
+--- GOOGL / vwap_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/4] {'VWAP_ENTRY_ATR_MULT': 1.0} -> total_return_pct=0.0740 pf=5.4113603348086485 trades=3 win_rate=66.67%
+  [2/4] {'VWAP_ENTRY_ATR_MULT': 1.5} -> total_return_pct=0.1046 pf=4.071326768549691 trades=5 win_rate=60.00%
+  [3/4] {'VWAP_ENTRY_ATR_MULT': 2.0} -> total_return_pct=0.1046 pf=4.071323542162473 trades=5 win_rate=60.00%
+  [4/4] {'VWAP_ENTRY_ATR_MULT': 2.5} -> total_return_pct=0.0574 pf=2.7261850304325552 trades=4 win_rate=50.00%
+  #1 {'VWAP_ENTRY_ATR_MULT': 1.5}
+      in-sample:  return=10.46% pf=4.071326768549691
+      out-sample: return=-9.22% pf=0.3187791970519341 trades=10 win_rate=10.00%
+  #2 {'VWAP_ENTRY_ATR_MULT': 2.0}
+      in-sample:  return=10.46% pf=4.071323542162473
+      out-sample: return=-9.22% pf=0.3187748855027579 trades=10 win_rate=10.00%
+  #3 {'VWAP_ENTRY_ATR_MULT': 1.0}
+      in-sample:  return=7.40% pf=5.4113603348086485
+      out-sample: return=-9.22% pf=0.31877410097848 trades=10 win_rate=10.00%
+
+--- GOOGL / orb_only (fixed 5% SL / 15% TP) ---
+  [1/3] {'ORB_RANGE_BARS': 1} -> total_return_pct=0.0574 pf=2.726200471095453 trades=4 win_rate=50.00%
+  [2/3] {'ORB_RANGE_BARS': 2} -> total_return_pct=0.1046 pf=4.071339793176822 trades=5 win_rate=60.00%
+  [3/3] {'ORB_RANGE_BARS': 4} -> total_return_pct=0.1046 pf=4.071347595040487 trades=5 win_rate=60.00%
+  #1 {'ORB_RANGE_BARS': 4}
+      in-sample:  return=10.46% pf=4.071347595040487
+      out-sample: return=-7.79% pf=0.36005830587670495 trades=9 win_rate=11.11%
+  #2 {'ORB_RANGE_BARS': 2}
+      in-sample:  return=10.46% pf=4.071339793176822
+      out-sample: return=-9.27% pf=0.31757927044030393 trades=11 win_rate=9.09%
+  #3 {'ORB_RANGE_BARS': 1}
+      in-sample:  return=5.74% pf=2.726200471095453
+      out-sample: return=-9.27% pf=0.3175794786123665 trades=11 win_rate=9.09%
+
+--- GOOGL / rsi_reversion_only (fixed 5% SL / 15% TP) ---
+  [1/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0707 pf=2.0666166049695494 trades=7 win_rate=42.86%
+  [2/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0707 pf=2.0666166049695494 trades=7 win_rate=42.86%
+  [3/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0707 pf=2.0666166049695494 trades=7 win_rate=42.86%
+  [4/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0875 pf=2.715648048998212 trades=6 win_rate=50.00%
+  [5/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0875 pf=2.715648048998212 trades=6 win_rate=50.00%
+  [6/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0875 pf=2.715648048998212 trades=6 win_rate=50.00%
+  [7/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0875 pf=2.7156393243156827 trades=6 win_rate=50.00%
+  [8/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0875 pf=2.7156393243156827 trades=6 win_rate=50.00%
+  [9/27] {'RSI_PERIOD': 7, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0875 pf=2.7156393243156827 trades=6 win_rate=50.00%
+  [10/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0740 pf=5.4113706136450554 trades=3 win_rate=66.67%
+  [11/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0740 pf=5.4113706136450554 trades=3 win_rate=66.67%
+  [12/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0740 pf=5.4113706136450554 trades=3 win_rate=66.67%
+  [13/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0875 pf=2.7156513463595413 trades=6 win_rate=50.00%
+  [14/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0875 pf=2.7156513463595413 trades=6 win_rate=50.00%
+  [15/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0875 pf=2.7156513463595413 trades=6 win_rate=50.00%
+  [16/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0875 pf=2.7156553673839476 trades=6 win_rate=50.00%
+  [17/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0875 pf=2.7156553673839476 trades=6 win_rate=50.00%
+  [18/27] {'RSI_PERIOD': 14, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0875 pf=2.7156553673839476 trades=6 win_rate=50.00%
+  [19/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0443 pf=inf trades=1 win_rate=100.00%
+  [20/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0443 pf=inf trades=1 win_rate=100.00%
+  [21/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0445 pf=inf trades=1 win_rate=100.00%
+  [22/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.0740 pf=5.4113706136450554 trades=3 win_rate=66.67%
+  [23/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.0740 pf=5.4113706136450554 trades=3 win_rate=66.67%
+  [24/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 25, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.0743 pf=5.4113706136450554 trades=3 win_rate=66.67%
+  [25/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70} -> total_return_pct=0.1046 pf=4.071357433485527 trades=5 win_rate=60.00%
+  [26/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75} -> total_return_pct=0.1046 pf=4.071357433485527 trades=5 win_rate=60.00%
+  [27/27] {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80} -> total_return_pct=0.1048 pf=4.071357433485527 trades=5 win_rate=60.00%
+  #1 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80}
+      in-sample:  return=10.48% pf=4.071357433485527
+      out-sample: return=-0.34% pf=0.932954632061945 trades=4 win_rate=25.00%
+  #2 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 70}
+      in-sample:  return=10.46% pf=4.071357433485527
+      out-sample: return=-3.40% pf=0.5650935748099132 trades=6 win_rate=16.67%
+  #3 {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 75}
+      in-sample:  return=10.46% pf=4.071357433485527
+      out-sample: return=2.52% pf=1.398975714198558 trades=6 win_rate=33.33%
+
+--- GOOGL / bb_squeeze_only (fixed 5% SL / 15% TP) ---
+  [1/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=0.0574 pf=2.798628882318975 trades=4 win_rate=50.00%
+  [2/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=0.0574 pf=2.798628882318975 trades=4 win_rate=50.00%
+  [3/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=0.0250 pf=1.3912236478693207 trades=6 win_rate=33.33%
+  [4/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0188 pf=0.7025496354386241 trades=5 win_rate=20.00%
+  [5/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=0.0410 pf=1.8538188696880789 trades=5 win_rate=40.00%
+  [6/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=0.0250 pf=1.3912266412123395 trades=6 win_rate=33.33%
+  [7/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=0.0122 pf=1.3986869653578575 trades=3 win_rate=33.33%
+  [8/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=0.0739 pf=5.79957500806503 trades=3 win_rate=66.67%
+  [9/18] {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=0.0739 pf=5.7995406141424795 trades=3 win_rate=66.67%
+  [10/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=0.0250 pf=1.3912219981465352 trades=6 win_rate=33.33%
+  [11/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=0.0250 pf=1.391222600230723 trades=6 win_rate=33.33%
+  [12/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=0.0250 pf=1.3912294676645123 trades=6 win_rate=33.33%
+  [13/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=0.0250 pf=1.3912219981465352 trades=6 win_rate=33.33%
+  [14/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=0.0250 pf=1.3912247745018227 trades=6 win_rate=33.33%
+  [15/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.0, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=0.0250 pf=1.3912294676645123 trades=6 win_rate=33.33%
+  [16/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1} -> total_return_pct=-0.0034 pf=0.9314945642319469 trades=4 win_rate=25.00%
+  [17/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2} -> total_return_pct=0.0249 pf=1.3951074981237512 trades=6 win_rate=33.33%
+  [18/18] {'BB_PERIOD': 20, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3} -> total_return_pct=0.0249 pf=1.3951105154355368 trades=6 win_rate=33.33%
+  #1 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2}
+      in-sample:  return=7.39% pf=5.79957500806503
+      out-sample: return=-10.35% pf=0.0 trades=7 win_rate=0.00%
+  #2 {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.3}
+      in-sample:  return=7.39% pf=5.7995406141424795
+      out-sample: return=-10.35% pf=0.0 trades=7 win_rate=0.00%
+  #3 {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1}
+      in-sample:  return=5.74% pf=2.798628882318975
+      out-sample: return=-1.88% pf=0.7025519926032411 trades=5 win_rate=20.00%
+
+
+====================================================================================================
+SUMMARY TABLE -- fixed 5% stop-loss / 15% take-profit (3:1), best in-sample combo per
+symbol/strategy, re-tested out-of-sample. Raw numbers only, no buy-and-hold comparison.
+====================================================================================================
+symbol  strategy               params                                               oos_ret   oos_pf  trades  win_rate
+SPY     mean_reversion_only    {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5}        -1.57%     0.00       1    0.00%
+SPY     vwap_reversion_only    {'VWAP_ENTRY_ATR_MULT': 1.0}                         -1.57%     0.00       1    0.00%
+SPY     orb_only               {'ORB_RANGE_BARS': 1}                                -1.57%     0.00       1    0.00%
+SPY     rsi_reversion_only     {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70}   -1.57%     0.00       1    0.00%
+SPY     bb_squeeze_only        {'BB_PERIOD': 20, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1}   -1.57%     0.00       1    0.00%
+QQQ     mean_reversion_only    {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.0}        -1.88%     0.70       5   20.00%
+QQQ     vwap_reversion_only    {'VWAP_ENTRY_ATR_MULT': 1.5}                         -1.88%     0.70       5   20.00%
+QQQ     orb_only               {'ORB_RANGE_BARS': 1}                                -0.34%     0.93       4   25.00%
+QQQ     rsi_reversion_only     {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 75}   -1.57%     0.00       1    0.00%
+QQQ     bb_squeeze_only        {'BB_PERIOD': 10, 'BB_STD_DEV': 1.5, 'BB_SQUEEZE_PERCENTILE': 0.1}   -0.34%     0.93       4   25.00%
+IWM     mean_reversion_only    {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 2.5}        -1.57%     0.00       1    0.00%
+IWM     vwap_reversion_only    {'VWAP_ENTRY_ATR_MULT': 1.0}                          2.81%     2.84       2   50.00%
+IWM     orb_only               {'ORB_RANGE_BARS': 1}                                 1.22%     1.40       3   33.33%
+IWM     rsi_reversion_only     {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70}   -1.55%     0.00       1    0.00%
+IWM     bb_squeeze_only        {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.1}   -0.03%     0.00       0    0.00%
+TSLA    mean_reversion_only    {'MR_MA_PERIOD': 20, 'MR_ENTRY_STD_DEV': 2.5}       -10.63%     0.28      11    9.09%
+TSLA    vwap_reversion_only    {'VWAP_ENTRY_ATR_MULT': 2.5}                         -0.66%     0.93       8   25.00%
+TSLA    orb_only               {'ORB_RANGE_BARS': 4}                               -10.35%     0.00       7    0.00%
+TSLA    rsi_reversion_only     {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 20, 'RSI_OVERBOUGHT': 70}   -4.57%     0.00       3    0.00%
+TSLA    bb_squeeze_only        {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2}   -4.90%     0.46       7   14.29%
+GOOGL   mean_reversion_only    {'MR_MA_PERIOD': 50, 'MR_ENTRY_STD_DEV': 1.5}        -3.40%     0.56       6   16.67%
+GOOGL   vwap_reversion_only    {'VWAP_ENTRY_ATR_MULT': 1.5}                         -9.22%     0.32      10   10.00%
+GOOGL   orb_only               {'ORB_RANGE_BARS': 4}                                -7.79%     0.36       9   11.11%
+GOOGL   rsi_reversion_only     {'RSI_PERIOD': 21, 'RSI_OVERSOLD': 30, 'RSI_OVERBOUGHT': 80}   -0.34%     0.93       4   25.00%
+GOOGL   bb_squeeze_only        {'BB_PERIOD': 10, 'BB_STD_DEV': 2.5, 'BB_SQUEEZE_PERCENTILE': 0.2}  -10.35%     0.00       7    0.00%
