@@ -1,6 +1,52 @@
 # Trading Bot Project — Context & Build Plan
 
-## Current status (2026-09-24, branch `unified-strategy-universe`) — unified vwap_reversion_only strategy + standardized bracket exit + hot-reloadable symbol universe, implemented per plan doc; not yet observed live
+## Current status (2026-09-24, night) — unified-strategy-universe merged to `main`, live paper session scheduled to auto-start tonight via the resumed cron supervisor
+
+**Merged `unified-strategy-universe` into `main` and pushed** (clean fast-forward,
+`e5cc11d..d2fb632`, no conflicts) — `main` now runs the unified
+`vwap_reversion_only` strategy + standardized 1.0%SL/3.0%TP bracket + the
+hot-reloadable `config/universe.json` universe described in the entry
+below, not the older per-symbol `INSTRUMENT_CONFIG` setup. Verified after
+merging: `tests.test_universe` still 15/15 pass, `bot/main.py` still
+imports cleanly, `config/universe.json` unchanged (SPY/QQQ/IWM/TSLA/GOOGL
+all `active`), on this same desktop/interpreter the market-hours
+supervisor script actually launches with
+(`C:\Users\Edwin\AppData\Local\Python\pythoncore-3.14-64\python.exe`,
+`cwd=G:\My Drive\edwinknows\financial\trade`).
+
+**Resumed the two Hermes cron jobs that had been paused since 2026-09-23
+~22:53** (`trading-bot-market-hours-supervisor`, job `3b7482a48215`, every
+5min, `no_agent` script-only; `trading-bot-log-monitor`, job `5067d1ee502c`,
+every 1min, Telegram alerts) — both had sat paused across the entire
+bracket-exit/fixed-pct-sweep/unified-strategy research arc below, so
+tonight (2026-09-24) is the first live/paper session to run since
+2026-09-23's fixes, and the first ever to run the unified-strategy
+architecture. Confirmed the supervisor's own trading-window check
+correctly reports "outside window" at the time cron jobs were resumed
+(~17:09 SGT) -- it will auto-`python -m bot.main` from `main` roughly 30min
+before tonight's 9:30pm SGT session open, no manual start needed. TWS
+confirmed open and logged into the paper account (`DUT119165`) ahead of
+time.
+
+**Known-not-yet-exercised going into tonight, stated plainly rather than
+assumed fine:** `bot/main.py`'s new universe-file subscribe/unsubscribe/
+reconcile wiring (`_sync_universe()`, `subscribe_symbol()`,
+`unsubscribe_symbol()`) has only ever been reasoned about + import-checked
+on this machine, never run against a real IBKR connection -- same
+"unverified live" status this file has applied to every other live-only
+code path in this project's history (see the 2026-09-18/09-22/09-23
+sections below, where multiple real bugs were found ONLY by actually
+running the bot, never by backtesting or static review). Also still true,
+carried over from 2026-09-18: no reconnect-with-backoff logic exists for a
+TWS-forced nightly restart, so a connection loss still needs a manual TWS
+relogin, not something the bot recovers from on its own. Worth watching
+the first hour or so of tonight's session more closely than a routine
+night, specifically for: the strategy actually running as
+`vwap_reversion_only` on every symbol (not silently falling back), bracket
+orders placed with the new 1.0%/3.0% sizing (not the old ATR-based
+sizing), and no crash/exception around `_sync_universe()`'s first tick.
+
+## Current status (2026-09-24, branch `unified-strategy-universe`, since merged to `main` above) — unified vwap_reversion_only strategy + standardized bracket exit + hot-reloadable symbol universe, implemented per plan doc; not yet observed live
 
 Implemented `research/unified_strategy_universe_plan_2026-09-24.md` in full
 (now marked IMPLEMENTED, with an "Additional issues found during

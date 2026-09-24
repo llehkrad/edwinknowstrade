@@ -1,9 +1,12 @@
 # Plan: Unified Entry Strategy + Hot-Reloadable Symbol Universe
 
-**Status:** IMPLEMENTED — 2026-09-24, branch `unified-strategy-universe`. See
-"Still open / to confirm at implementation time" at the bottom for what was
-found/decided during implementation, and CLAUDE.md's 2026-09-24 entry for
-the full summary.
+**Status:** IMPLEMENTED and MERGED TO MAIN — 2026-09-24. Implemented on
+branch `unified-strategy-universe`, merged into `main` via a clean
+fast-forward the same day (`e5cc11d..d2fb632`, no conflicts) ahead of the
+first paper-trading session under this architecture. See "Still open / to
+confirm at implementation time" at the bottom for what was found/decided
+during implementation, and CLAUDE.md's 2026-09-24 entries (both the merge
+entry and the implementation entry) for the full summary.
 **Owner decision log:** see bottom.
 
 ## Goal
