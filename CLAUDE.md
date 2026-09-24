@@ -1,5 +1,82 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-24, branch `bracket-tp-sl`) — bracket-order exits (ATR-based and fixed-%) tested; no validated edge yet, but a real quality signal (win rate) identified
+
+Per operator request, redesigned exit handling from "strategy's own signal
+reversal + single ATR stop" to a proper **bracket order**: stop-loss AND
+take-profit placed together at entry (one-cancels-other), replacing each
+strategy's own EXIT signal entirely for this test — a position holds until
+either level is hit, full stop. Entry signal logic is unchanged.
+
+**Live bot** (`bot/main.py`): now places a real IBKR OCO bracket (StopOrder
++ LimitOrder) instead of just a stop. **Backtest engine**
+(`backtest/engine.py`, `use_bracket_exits=True`, opt-in): checks each bar's
+HIGH/LOW (not just close) to correctly simulate intrabar stop/TP hits —
+if both levels fall within the same bar's range, the stop-loss is assumed
+to trigger first (conservative tie-break, documented in code). Both are
+strictly opt-in; every existing non-bracket backtest path/result is
+unaffected.
+
+**Two stop-sizing modes added** (`config.STOP_LOSS_MODE`):
+- `"atr"` (default, unchanged): stop = `STOP_LOSS_ATR_MULT * ATR`
+- `"fixed_pct"` (new): stop = `FIXED_STOP_LOSS_PCT * entry_price` (flat %,
+  symbol/volatility-agnostic). Take-profit = stop distance * `TAKE_PROFIT_RATIO`
+  in both modes, so R:R semantics are identical — only how the base "1R"
+  distance is computed differs.
+
+### ATR-based bracket results (`backtest/validate_bracket_exits.py`)
+Grid search (entry params x `STOP_LOSS_ATR_MULT` [2/3/4] x `TAKE_PROFIT_RATIO`
+[2:1/3:1]) on SPY, QQQ, IWM, TSLA (GOOGL run was stopped by operator request
+before completing — see `backtest_results/bracket_validation_log.txt` for
+partial data through TSLA). Per operator preference, read raw OOS
+return/PF/trades, not the buy-and-hold comparison the script also prints:
+
+- **VWAP-reversion is the standout across SPY, QQQ, and IWM** — consistently
+  positive OOS returns with real profit factors (up to ~3.0), best result
+  IWM +2.85% PF 2.96 (19 trades).
+- **ORB and BB-squeeze lose money consistently on SPY/QQQ/IWM**, regardless
+  of stop/TP tuning.
+- **TSLA is much noisier** — no strategy held up consistently OOS; several
+  combos with strong in-sample returns (7-8%) fell apart out-of-sample
+  (-3% to -7%), a clear overfitting signature. One ORB combo hit +5.16% OOS
+  but neighboring combos in the same top-3 lost 5-9%, i.e. not robust to
+  parameter choice.
+
+**Root-cause analysis** (`backtest/analyze_stop_distances.py`, ad-hoc,
+SPY-specific): compared a losing combo (ORB, 2x ATR stop, 3:1 TP) against a
+winning one (VWAP-reversion, 3x ATR stop, 2:1 TP). Stop/TP distances landed
+close to their configured ATR multiples in both cases (~0.5% stop / ~1.3%
+TP for ORB; ~0.6% stop / ~1.2% TP for VWAP-reversion) — the bracket
+mechanics work as designed. **The actual differentiator is win rate, not
+R:R sizing**: ORB won only ~23% of trades (needs >25% to clear its 3:1
+payoff breakeven) vs. VWAP-reversion's ~37% (clears its 2:1 breakeven
+comfortably). Entry signal quality, not stop/TP distance, is the lever
+that matters here.
+
+### Fixed 5% stop / 15% TP (3:1) results (`backtest/validate_fixed_pct_exits.py`)
+Full write-up: `research/fixed_pct_validation_2026-09-24.md`, raw log:
+`backtest_results/fixed_pct_validation_log.txt`. Same 5 strategies x 5
+symbols, no buy-and-hold comparison (raw numbers only, per operator
+request).
+
+**Worse than the ATR-based version, not better.** A flat 5% stop is too
+wide for 15-min bars: SPY only produced **1 trade in the entire 6-month
+OOS window across all 5 strategies**, since price rarely moves 5%
+intraday before the underlying signal would exit anyway — sample sizes
+(1-11 trades per combo) are too thin to draw conclusions. Only IWM
+VWAP-reversion (+2.81%, PF 2.84) and ORB (+1.22%, PF 1.40) were positive,
+each on just 2-3 trades. TSLA and GOOGL were clearly negative across the
+board (down to -10.6%). **Conclusion: fixed-% stops don't fit this
+timeframe — ATR-based sizing (which naturally scales to each instrument's
+actual intraday volatility) remains the more sensible approach for a
+15-min bot.**
+
+### Open next step
+VWAP-reversion's win-rate edge (SPY/QQQ/IWM) under ATR-based brackets is
+the most promising thread from today's work — worth tuning further (entry
+threshold, stop/TP ratio) rather than pursuing fixed-% stops or ORB/
+BB-squeeze further on these instruments.
+
 ## Current status (2026-09-24) — TSLA/GOOGL/MSFT/AAPL/NVDA explored: no edge with existing mean-reversion/VWAP strategies; momentum testing planned next
 **Operator asked to add TSLA, GOOGL, MSFT, AAPL, NVDA to the bot's universe.**
 Before any live/paper trading, ran the same out-of-sample discipline used
