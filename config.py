@@ -121,6 +121,16 @@ BB_SQUEEZE_PERCENTILE = 0.20   # squeeze = band width in the bottom 20% of its o
 USE_BRACKET_EXITS = False
 TAKE_PROFIT_RATIO = 2.0
 
+# Stop-loss distance basis: "atr" (default, existing behavior) or "fixed_pct"
+# -- a simple, symbol/volatility-agnostic stop set as a flat % of entry price
+# (e.g. 0.05 = 5%), added 2026-09-24 per operator request to compare against
+# ATR-based sizing. When "fixed_pct", STOP_LOSS_ATR_MULT is ignored for stop
+# distance and FIXED_STOP_LOSS_PCT is used instead; take-profit still uses
+# TAKE_PROFIT_RATIO * (that stop distance), so the R:R ratio semantics are
+# unchanged -- only how the base "1R" distance is computed differs.
+STOP_LOSS_MODE = "atr"  # "atr" | "fixed_pct"
+FIXED_STOP_LOSS_PCT = 0.05  # 5% of entry price, only used when STOP_LOSS_MODE == "fixed_pct"
+
 # --- Long-term trend filter (daily bars) ---
 # Added 2026-09-16 as a mechanically distinct angle after 900+ configs of
 # pure 15-min TA signals showed no edge (see CLAUDE.md "Strategy search

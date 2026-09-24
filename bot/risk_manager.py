@@ -50,19 +50,27 @@ def position_size(equity: float, atr_value: float, price: float, force_whole_sha
     return float(int(raw_qty))
 
 
+def _stop_distance(entry_price: float, atr_value: float) -> float:
+    """Base '1R' distance for stop/take-profit sizing, per config.STOP_LOSS_MODE."""
+    if config.STOP_LOSS_MODE == "fixed_pct":
+        return entry_price * config.FIXED_STOP_LOSS_PCT
+    return atr_value * config.STOP_LOSS_ATR_MULT
+
+
 def stop_price_for(entry_price: float, atr_value: float, is_long: bool) -> float:
-    distance = atr_value * config.STOP_LOSS_ATR_MULT
+    distance = _stop_distance(entry_price, atr_value)
     return entry_price - distance if is_long else entry_price + distance
 
 
 def take_profit_price_for(entry_price: float, atr_value: float, is_long: bool) -> float:
     """
-    Take-profit distance = the same ATR stop distance scaled by
-    config.TAKE_PROFIT_RATIO (the risk:reward multiple) -- e.g. a 2.0x
-    stop and TAKE_PROFIT_RATIO=2.0 gives a 4.0x-ATR take-profit, a 2:1
-    reward:risk bracket. Only used when config.USE_BRACKET_EXITS is True.
+    Take-profit distance = the same base stop distance (ATR-based or fixed-%,
+    per config.STOP_LOSS_MODE) scaled by config.TAKE_PROFIT_RATIO (the
+    risk:reward multiple) -- e.g. a 5% fixed stop and TAKE_PROFIT_RATIO=2.0
+    gives a 10% take-profit, a 2:1 reward:risk bracket. Only used when
+    config.USE_BRACKET_EXITS is True.
     """
-    distance = atr_value * config.STOP_LOSS_ATR_MULT * config.TAKE_PROFIT_RATIO
+    distance = _stop_distance(entry_price, atr_value) * config.TAKE_PROFIT_RATIO
     return entry_price + distance if is_long else entry_price - distance
 
 
