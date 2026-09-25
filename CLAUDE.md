@@ -1,5 +1,54 @@
 # Trading Bot Project — Context & Build Plan
 
+## Current status (2026-09-25, evening) — a real 55.6% "circuit breaker" trip was a phantom-equity bug, and the resulting flatten opened an unintended new position. Both fixed.
+
+### Incident #5: reconciled short positions were never credited in `cash`, fabricating a ~56% phantom drawdown
+`reconcile_positions_from_ibkr()` added a reconciled position into
+`portfolio.positions` (so it's marked-to-market every bar) but never
+touched the module-level `cash` variable the way a normal `place_entry`
+fill does. `mark_to_market_equity()` computes `cash + sum(qty * price)`
+across positions -- for a SHORT, `qty` is negative, so with `cash` left at
+the untouched `$5,000` starting balance, the formula treated the full
+notional of two reconciled shorts (GOOGL -4 @ ~$342, IWM -5 @ ~$281) as a
+pure liability with no offsetting credit for the actual cash received from
+selling short. This fabricated a ~$2,784 phantom loss, collapsing internal
+equity from a peak of $5,000 to ~$2,216 -- a **fake 55.6% drawdown** that
+tripped the real, correctly-configured 10% `MAX_DRAWDOWN_PCT` circuit
+breaker and force-flattened both positions, which in reality had only ~$4
+each of real unrealized loss.
+
+**Compounding bug**: `flatten_all()` closed both positions with fresh
+market orders but never cancelled their original resting bracket orders,
+on a false comment-documented assumption ("IBKR will reject a resting
+order against a flat symbol"). That assumption is wrong -- a BUY-to-cover
+stop is a perfectly valid standing order against a flat account. GOOGL's
+stale stop order (87, STP@345.67) later triggered on a normal price
+move and bought 4 shares, **silently opening a brand-new, completely
+unprotected GOOGL long** while the bot believed itself halted and flat.
+Caught live via manual account inspection (not by the bot itself), manually
+flattened again (SOLD 4 GOOGL @ 344.94, cancelled IWM's stray orders).
+
+**Fixes** (both in `bot/main.py`):
+1. New `_credit_cash_for_reconciled_entry()` helper applies the exact same
+   cash effect `place_entry`'s `on_fill` would have, called from both
+   reconciliation branches (adopting an already-bracketed position, and
+   placing a fresh stop for a genuinely orphaned one).
+2. `flatten_all()` now explicitly cancels every resting order for a
+   symbol via `ib.reqAllOpenOrders()` before closing the position, instead
+   of relying on the false "IBKR will reject it" assumption.
+
+New test `tests/test_reconcile_positions.py::test_reconciled_short_credits_cash_correctly`
+reproduces the exact real numbers from this incident and asserts equity
+round-trips back to ~$5,000 instead of collapsing to ~$2,216.
+
+**Lesson for future work touching equity/cash accounting**: `cash` and
+`portfolio.positions` must ALWAYS be updated together, anywhere a position
+is created or closed outside the normal `place_entry`/`place_exit` fill
+path (reconciliation, manual adoption, etc.) -- a position with no cash
+effect is silently wrong and will not surface as an error, only as
+wrong-looking equity numbers that can trigger real safety mechanisms on
+fake data.
+
 ## Current status (2026-09-25, early morning) — FOUR real live bugs found and fixed tonight under the new architecture. All four verified live, not just reasoned about.
 
 ### Incident #4: spurious `Cancelled` status treated as final (GOOGL, ~00:15-00:40)
