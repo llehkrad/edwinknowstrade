@@ -407,6 +407,42 @@ def reconcile_positions_from_ibkr(contracts: dict) -> None:
             continue  # already tracked normally, nothing to reconcile
 
         is_long = qty > 0
+
+        # portfolio.has_position() is purely in-memory and resets on every
+        # process restart -- it does NOT mean the position is actually
+        # unprotected. If a bracket from a previous run is still resting at
+        # IBKR (the normal, common case after any restart while a position
+        # is open), skip placing ANOTHER stop for it. Found live 2026-09-25:
+        # every clean restart while GOOGL/IWM were open re-added a second,
+        # non-OCA-linked stop on top of the still-valid original bracket --
+        # two live BUY-to-cover stops per symbol meant a stop-out could have
+        # bought back double the shares needed, flipping the position net
+        # long. Only treat a position as genuinely orphaned if IBKR itself
+        # has no resting closing order for it.
+        closing_action = "SELL" if is_long else "BUY"
+        existing_closing_orders = [
+            t for t in ib.reqAllOpenOrders()
+            if t.contract.symbol == symbol and t.order.action == closing_action
+        ]
+        if existing_closing_orders:
+            # Already protected by a resting order from a prior run --
+            # adopt it into local tracking (using the FIRST such order's
+            # price as the tracked stop) without placing a new one.
+            portfolio.open_position(
+                Position(
+                    symbol=symbol, quantity=qty, entry_price=ib_pos.avgCost,
+                    stop_price=existing_closing_orders[0].order.auxPrice or existing_closing_orders[0].order.lmtPrice,
+                    opened_at=datetime.now(),
+                )
+            )
+            logger.warning(
+                "RECONCILED %s at startup: found %d existing closing order(s) already "
+                "resting at IBKR (e.g. orderId=%s) -- adopted into local tracking "
+                "without placing a duplicate stop.",
+                symbol, len(existing_closing_orders), existing_closing_orders[0].order.orderId,
+            )
+            continue
+
         entry_price = ib_pos.avgCost
         latest_price = entry_price  # best available estimate until a live bar arrives
         # No live bar history exists yet at this point in startup (reconciliation
