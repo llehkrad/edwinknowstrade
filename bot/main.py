@@ -354,6 +354,31 @@ def _make_bracket_exit_handler(symbol: str, entry_price: float, is_long: bool, q
     return on_result
 
 
+def _credit_cash_for_reconciled_entry(qty: float, entry_price: float, is_long: bool) -> None:
+    """
+    Applies the same cash effect place_entry()'s on_fill() would have
+    applied, for a position reconcile_positions_from_ibkr() is adopting
+    after the fact.
+
+    2026-09-25 incident (see CLAUDE.md): reconciliation added the position
+    to `portfolio.positions` (so it's marked-to-market every bar) but never
+    touched the module-level `cash` variable. mark_to_market_equity()
+    computes `cash + sum(pos.quantity * price for pos in positions)` -- for
+    a SHORT position, quantity is negative, so that unadjusted formula
+    subtracted the full notional value of the short as if it were a
+    liability with no offsetting cash ever received for the sale. Two
+    reconciled shorts (GOOGL, IWM) fabricated a ~$2,784 phantom loss,
+    collapsing internal equity from a peak of $5,000 to ~$2,216 -- a fake
+    55.6% drawdown that tripped the real 10%-drawdown circuit breaker and
+    force-flattened two positions that had only a few dollars of real
+    unrealized loss. Mirrors exactly place_entry's on_fill cash formula:
+    a short sale credits cash by qty*price; a long purchase debits it.
+    """
+    global cash
+    abs_qty = abs(qty)
+    cash += (-abs_qty * entry_price) if is_long else (abs_qty * entry_price)
+
+
 def reconcile_positions_from_ibkr(contracts: dict) -> None:
     """
     Adopts any real IBKR position this bot's own in-memory Portfolio doesn't
@@ -435,6 +460,7 @@ def reconcile_positions_from_ibkr(contracts: dict) -> None:
                     opened_at=datetime.now(),
                 )
             )
+            _credit_cash_for_reconciled_entry(qty, ib_pos.avgCost, is_long)
             logger.warning(
                 "RECONCILED %s at startup: found %d existing closing order(s) already "
                 "resting at IBKR (e.g. orderId=%s) -- adopted into local tracking "
@@ -457,6 +483,7 @@ def reconcile_positions_from_ibkr(contracts: dict) -> None:
         portfolio.open_position(
             Position(symbol=symbol, quantity=qty, entry_price=entry_price, stop_price=stop_price, opened_at=datetime.now())
         )
+        _credit_cash_for_reconciled_entry(qty, entry_price, is_long)
 
         contract = contracts[symbol]
         stop_action = "SELL" if is_long else "BUY"
@@ -657,15 +684,35 @@ def _sync_universe(bar_lists: dict, contracts: dict) -> None:
 
 
 def flatten_all(contracts: dict) -> None:
-    # NOTE: this places a market order to close each position but does not
-    # explicitly cancel that position's resting protective order(s) (the
-    # single StopOrder in normal mode, or the stop+take-profit OCO pair
-    # under config.USE_BRACKET_EXITS) -- a pre-existing gap (not introduced
-    # by bracket exits) that predates this function. IBKR will reject a
-    # resting order against a symbol with no position once it's flat, so
-    # this is not expected to open a new unintended position, but stale
-    # orders can still show up in TWS until manually cancelled.
+    """
+    Closes every open position with a market order AND cancels any resting
+    protective orders for that symbol (stop-loss, take-profit, or both
+    legs of a bracket).
+
+    2026-09-25 incident (see CLAUDE.md): this used to only place the
+    closing market order and never cancelled the position's own resting
+    bracket orders, on the false assumption that "IBKR will reject a
+    resting order against a symbol with no position once it's flat." That
+    assumption is wrong -- a BUY-to-cover stop is a perfectly valid
+    standing order against a FLAT account (it just opens a new long when
+    triggered); IBKR does not reject it. After the circuit breaker
+    flattened GOOGL and IWM, GOOGL's original protective stop (still
+    resting, never cancelled) later triggered on a normal price move and
+    bought 4 shares -- silently opening a brand-new, completely
+    unprotected GOOGL long while the bot believed itself halted and flat.
+    Caught live, manually flattened again. Now explicitly cancels every
+    open order for each symbol being flattened, in addition to closing
+    the position itself.
+    """
     for symbol in list(portfolio.positions.keys()):
+        for trade in ib.reqAllOpenOrders():
+            if trade.contract.symbol == symbol:
+                ib.cancelOrder(trade.order)
+                logger.warning(
+                    "flatten_all: cancelled resting order %s (%s %s) for %s "
+                    "before closing the position.",
+                    trade.order.orderId, trade.order.action, trade.order.orderType, symbol,
+                )
         place_exit(contracts[symbol], symbol, "circuit_breaker", Regime.RANGING)
 
 

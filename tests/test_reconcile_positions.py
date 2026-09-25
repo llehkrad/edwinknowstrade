@@ -52,11 +52,13 @@ class TestReconcileSkipsExistingBracket(unittest.TestCase):
     def setUp(self):
         self._real_ib = bot_main.ib
         self._real_portfolio = bot_main.portfolio
+        self._real_cash = bot_main.cash
         bot_main.portfolio = Portfolio()
 
     def tearDown(self):
         bot_main.ib = self._real_ib
         bot_main.portfolio = self._real_portfolio
+        bot_main.cash = self._real_cash
 
     def test_existing_resting_stop_is_not_duplicated(self):
         # GOOGL short position, with a BUY stop + BUY limit already resting
@@ -77,6 +79,47 @@ class TestReconcileSkipsExistingBracket(unittest.TestCase):
         pos = bot_main.portfolio.get_position("GOOGL")
         self.assertEqual(pos.quantity, -4.0)
         self.assertEqual(pos.stop_price, 345.67)
+
+    def test_reconciled_short_credits_cash_correctly(self):
+        # The core 2026-09-25 incident: reconciliation adds the position to
+        # portfolio.positions (marked-to-market every bar) but must ALSO
+        # credit `cash` for the short sale, exactly as place_entry's
+        # on_fill would have. Before the fix, cash stayed untouched at
+        # ACCOUNT_EQUITY_USD while mark_to_market subtracted the full
+        # notional of the short as a pure liability -- fabricating a huge
+        # phantom loss (two reconciled shorts collapsed equity from $5000
+        # to ~$2216, a fake 55.6% drawdown that tripped the real circuit
+        # breaker). Uses the exact real numbers from that incident.
+        fake_ib = MagicMock()
+        fake_ib.positions.return_value = [
+            make_ib_position("GOOGL", -4.0, 341.9696),
+            make_ib_position("IWM", -5.0, 281.48546),
+        ]
+        fake_ib.reqAllOpenOrders.return_value = [
+            make_open_order("GOOGL", 87, "BUY", "STP", aux_price=345.67),
+            make_open_order("IWM", 90, "BUY", "STP", aux_price=284.53),
+        ]
+        bot_main.ib = fake_ib
+        bot_main.cash = 5000.0  # config.ACCOUNT_EQUITY_USD
+
+        contracts = {"GOOGL": SimpleNamespace(symbol="GOOGL"), "IWM": SimpleNamespace(symbol="IWM")}
+        bot_main.reconcile_positions_from_ibkr(contracts)
+
+        # A short sale must CREDIT cash by qty*price (mirrors place_entry's
+        # on_fill: `cash += qty * fill_price` for the SELL/short branch).
+        expected_cash = 5000.0 + (4.0 * 341.9696) + (5.0 * 281.48546)
+        self.assertAlmostEqual(bot_main.cash, expected_cash, places=4)
+
+        # And equity computed from cash + mark-to-market at the SAME price
+        # the position was reconciled at must round-trip back to
+        # approximately the starting equity, NOT collapse into a phantom
+        # ~44% loss.
+        bar_lists = {
+            "GOOGL": [SimpleNamespace(close=341.9696)],
+            "IWM": [SimpleNamespace(close=281.48546)],
+        }
+        equity = bot_main.mark_to_market_equity(bar_lists)
+        self.assertAlmostEqual(equity, 5000.0, places=4)
 
     def test_genuinely_orphaned_position_still_gets_a_fresh_stop(self):
         # No resting closing order at all -- this IS the case that should
